@@ -23,13 +23,18 @@ function human2bytes()
 }
 
 function bytes2human() {
-    local i=${1:-0} d="" s=0 S=("Bytes" "KiB" "MiB" "GiB" "TiB" "PiB" "EiB" "YiB" "ZiB")
-    while ((i > 1024 && s < ${#S[@]}-1)); do
-        printf -v d ".%02d" $((i % 1024 * 100 / 1024))
-        i=$((i / 1024))
-        s=$((s + 1))
-    done
-    echo "$i$d ${S[$s]}"
+        local SIZE=$1
+        local UNITS="B KiB MiB GiB TiB PiB"
+        for F in $UNITS; do
+                local UNIT=$F
+                test ${SIZE%.*} -lt 1024 && break;
+                SIZE=$(echo "$SIZE / 1024" | bc -l)
+        done
+    if [ "$UNIT" == "B" ]; then
+        printf "%4.0f    %s\n" $SIZE $UNIT
+    else
+        printf "%7.02f %s\n" $SIZE $UNIT
+    fi
 }
 
 function human2seconds()
@@ -45,7 +50,7 @@ DOCKERDIR=/var/lib/registry/docker
 
 echo " * LIMIT           : ${LIMIT} (${HLIMIT})"
 echo " * LIMIT THRESHOLD : ${THRESHOLD}%"
-echo " * LIMIT TH SIZE   : ${THLIMIT} $(bytes2human ${THLIMIT})"
+echo " * LIMIT TH SIZE   : ${THLIMIT} ($(bytes2human ${THLIMIT}))"
 echo " * RUNNING EVERY   : ${RUNEVERYSECONDS} seconds"
 
 while true; do
