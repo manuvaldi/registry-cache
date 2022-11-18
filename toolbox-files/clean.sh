@@ -1,4 +1,4 @@
-LIMIT="${CLEANER_MAXSIZE:-1G}"
+HLIMIT="${CLEANER_MAXSIZE:-1G}"
 THRESHOLD="${CLEANER_THRESHOLD_PERCENTAGE:-20}"
 RUNEVERYSECONDS="${CLEANER_RUNEVERY_TIME:-15m}"
 
@@ -22,29 +22,39 @@ function human2bytes()
        /TB$/{    printpower($1, 10,  9)}'
 }
 
+function bytes2human() {
+    local i=${1:-0} d="" s=0 S=("Bytes" "KiB" "MiB" "GiB" "TiB" "PiB" "EiB" "YiB" "ZiB")
+    while ((i > 1024 && s < ${#S[@]}-1)); do
+        printf -v d ".%02d" $((i % 1024 * 100 / 1024))
+        i=$((i / 1024))
+        s=$((s + 1))
+    done
+    echo "$i$d ${S[$s]}"
+}
+
 function human2seconds()
 {
   echo "$1" | awk -F '[hm.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }'
 }
 ##### Main
 
-LIMIT=$(human2bytes $LIMIT)
+LIMIT=$(human2bytes ${HLIMIT})
 RUNEVERYSECONDS=$(human2seconds $$RUNEVERYSECONDS)
-THLIMIT=$(echo $LIMIT $THRESHOLD | awk '{printf "%4.0f\n",$1*(1+($2/100))}')
+THLIMIT=$(echo ${LIMIT} $THRESHOLD | awk '{printf "%4.0f\n",$1*(1+($2/100))}')
 DOCKERDIR=/var/lib/registry/docker
 
-echo " * LIMIT           : $LIMIT"
+echo " * LIMIT           : ${LIMIT} (${HLIMIT})"
 echo " * LIMIT THRESHOLD : ${THRESHOLD}%"
-echo " * LIMIT TH SIZE   : $THLIMIT ($(human2bytes $THLIMIT))"
+echo " * LIMIT TH SIZE   : ${THLIMIT} $(bytes2human ${THLIMIT})"
 echo " * RUNNING EVERY   : ${RUNEVERYSECONDS} seconds"
 
 while true; do
   size=$(du -s $DOCKERDIR | awk '{print $1}')
   sizeh=$(du -hs $DOCKERDIR | awk '{print $1}')
   echo " ** CURRENT SIZE: $size (${sizeh})"
-  if [ $size -gt $THLIMIT ]; then
-    while [ $size -gt $LIMIT ]; do
-      echo " ** Cleaning ($size > $THLIMIT)"
+  if [ $size -gt ${THLIMIT} ]; then
+    while [ $size -gt ${LIMIT} ]; do
+      echo " ** Cleaning ($size > ${THLIMIT})"
       du -hs /var/lib/registry
       ls -lu -tu -r $DOCKERDIR/registry/v2/blobs/sha256/*/*  | grep blobs | head -n 1 | tr -d ":" | xargs rm -Rf
       size=$(du -s $DOCKERDIR | awk '{print $1}')
