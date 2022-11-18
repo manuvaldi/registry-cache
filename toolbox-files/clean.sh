@@ -23,18 +23,9 @@ function human2bytes()
 }
 
 function bytes2human() {
-        local SIZE=$1
-        local UNITS="B KiB MiB GiB TiB PiB"
-        for F in $UNITS; do
-                local UNIT=$F
-                test ${SIZE%.*} -lt 1024 && break;
-                SIZE=$(echo "$SIZE / 1024" | bc -l)
-        done
-    if [ "$UNIT" == "B" ]; then
-        printf "%4.0f    %s\n" $SIZE $UNIT
-    else
-        printf "%7.02f %s\n" $SIZE $UNIT
-    fi
+  echo $1 | awk \
+     '{split("Byt,KiB,MiB,GiB,TiB", unit, ",");
+      (size=$1) ? level=sprintf("%.0d", (log(size)/log(1024))) : level=1; printf "%.2f %s\n", size/(1024**level), unit[level+2]}'
 }
 
 function human2seconds()
