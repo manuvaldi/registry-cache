@@ -67,7 +67,8 @@ while true; do
       size=$(du -s $DOCKERDIR | awk '{print $1}')
       sizeh=$(du -hs $DOCKERDIR | awk '{print $1}')
     done
-    registry garbage-collect /etc/docker/registry/config.yml &>/dev/null
+    echo " ** Executing Garbage Collector...."
+    registry garbage-collect /etc/docker/registry/config.yml
     echo " ** AFTER CLEAN SIZE: $size ( ${sizeh} )"
   fi
   sleep $RUNEVERYSECONDS
