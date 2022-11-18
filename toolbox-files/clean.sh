@@ -22,10 +22,17 @@ function human2bytes()
        /TB$/{    printpower($1, 10,  9)}'
 }
 
+## Kudos https://unix.stackexchange.com/a/44087
 function bytes2human() {
-  echo $1 | awk \
-     '{split("Byt,KiB,MiB,GiB,TiB", unit, ",");
-      (size=$1) ? level=sprintf("%.0d", (log(size)/log(1024))) : level=1; printf "%.2f %s\n", size/(1024**level), unit[level+2]}'
+  echo $1 | awk '
+    function human(x) {
+        if (x<1000) {return x} else {x/=1024}
+        s="MGTEPZY";
+        while (x>=1000 && length(s)>1)
+            {x/=1024; s=substr(s,2)}
+        return int(x+0.5) substr(s,1,1)
+    }
+    {sub(/^[0-9]+/, human($1)); print}'
 }
 
 function human2seconds()
