@@ -31,6 +31,13 @@ spec:
       containers:
       - name: toolbox
         image: quay.io/mvalledi/registry-cache-toolbox:latest
+        env:
+        - name: CLEANER_MAXSIZE
+          value: "1000000" # Max Size in bytes
+        - name: CLEANER_THRESHOLD_PERCENTAGE
+          value: "20" # Percentage threshold. If cache takes CLEANER_MAXSIZE+CLEANER_THRESHOLD_PERCENTAGE%, then cleaner cleans
+        - name: CLEANER_RUNEVERY_SECONDS
+          value: "300" # Cleaner check every CLEANER_RUNEVERY_SECONDS the cache size
         volumeMounts:
         - name: data
           mountPath: /var/lib/registry
