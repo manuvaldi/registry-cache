@@ -30,7 +30,7 @@ spec:
       restartPolicy: Always
       containers:
       - name: toolbox
-        image: quay.io/mvalledi/registry-cache-toolbox:latest
+        image: quay.io/mvalledi/registry-cache-toolbox:dev
         env:
         - name: CLEANER_MAXSIZE
           value: "10G" # Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...)
@@ -51,7 +51,7 @@ spec:
           mountPath: /var/lib/registry
       - name: registry
         imagePullPolicy: Always
-        image: quay.io/mvalledi/registry-cache-toolbox:latest
+        image: quay.io/mvalledi/registry-cache-toolbox:dev
         command: ["/bin/sh","-c"]
         args: ["sh /toolbox/generate-config.sh && registry serve /etc/docker/registry/config.yml"]
         env:

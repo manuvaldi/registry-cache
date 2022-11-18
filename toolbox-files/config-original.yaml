@@ -19,7 +19,7 @@ health:
 notifications:
  endpoints:
    - name: logger
-     url: http://192.168.10.110:8000?token=replace-token-name&hook=logger
+     url: http://127.0.0.1:8000?token=replace-token-name&hook=logger
      timeout: 1000ms
      threshold: 1
      backoff: 1s
