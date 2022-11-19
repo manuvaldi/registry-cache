@@ -9,4 +9,4 @@ RUN mkdir -p /var/lib/registry/ && \
 
 EXPOSE 8000
 
-CMD ["python3", "app.py", "8000"]
+CMD ["python3", "-u", "app.py", "8000"]

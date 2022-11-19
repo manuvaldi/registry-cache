@@ -9,6 +9,7 @@ import os
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+sys.stdout.flush()
 registrydir = "/var/lib/registry"
 imagesfile = registrydir + "/images.log"
 
@@ -116,6 +117,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
               digestarray = digest.split(":")
               blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
+              print(" * Blobfile " + blobfile )
               if os.getenv('TEST') == "true":
                   blobfile = os.getenv('TESTBLOBFILE')
               f = open(blobfile,'r')
@@ -123,7 +125,7 @@ class RequestHandler(BaseHTTPRequestHandler):
               f.close()
 
               for layer in digestblobjson['layers']:
-                  print(layer['digest'])
+                  print("* Layer digest to print" + layer['digest'])
                   layerfile = registrydir + '/docker/registry/v2/blobs/sha256/' + layer['digest'].split(':')[1][:2] + '/' + layer['digest'].split(':')[1] + '/data'
                   print(" * Updating atime of file: " + layerfile)
                   statlayerfile = os.stat(layerfile)
