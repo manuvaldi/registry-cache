@@ -66,6 +66,7 @@ while true; do
       find $DOCKERDIR/registry/v2/blobs/sha256 -name data -exec stat -c '%x %n' {} \;  | sort -g | head -n 1 | awk '{sub(/data/,"");print $4}' | xargs rm -Rf
       echo " ** Executing Last Garbage Collector...."
       registry garbage-collect /etc/docker/registry/config.yml &>/dev/null
+      sleep 5
       size=$(du -s $DOCKERDIR | awk '{print $1}')
       sizeh=$(du -hs $DOCKERDIR | awk '{print $1}')
     done
