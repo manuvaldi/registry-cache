@@ -124,7 +124,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             try:
                 digestblobjson = json.load(f)
                 isJson = True
-            except ValueError, error:
+            except:
                 print(" * Blob is not json: " + error)
                 isJson = False
             f.close()
