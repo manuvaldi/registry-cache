@@ -146,7 +146,7 @@ def updateatime(file):
 
   print(" * Updating atime of file (if exists): " + file)
   if os.path.exists(file):
-    os.utime(layerfile)
+    os.utime(file)
 
 
 def url_to_dict(url):
