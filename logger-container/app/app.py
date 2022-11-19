@@ -115,21 +115,27 @@ class RequestHandler(BaseHTTPRequestHandler):
             except:
               print(imagesfile + " file doesn't exists, no problem, continue")
 
-              digestarray = digest.split(":")
-              blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
-              print(" * Blobfile " + blobfile )
-              if os.getenv('TEST') == "true":
-                  blobfile = os.getenv('TESTBLOBFILE')
-              f = open(blobfile,'r')
-              digestblobjson = json.load(f)
-              f.close()
-
-              for layer in digestblobjson['layers']:
-                  print("* Layer digest to print" + layer['digest'])
+            digestarray = digest.split(":")
+            blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
+            print(" * Blobfile " + blobfile )
+            if os.getenv('TEST') == "true":
+              blobfile = os.getenv('TESTBLOBFILE')
+            f = open(blobfile,'r')
+            try:
+                digestblobjson = json.load(f)
+                isJson = True
+            except ValueError, error:
+                print(" * Blob is not json: " + error)
+                isJson = False
+            f.close()
+            if isJson and 'layers' in digestblobjson:
+                for layer in digestblobjson['layers']:
+                  print(" * Layer digest to print: " + layer['digest'])
                   layerfile = registrydir + '/docker/registry/v2/blobs/sha256/' + layer['digest'].split(':')[1][:2] + '/' + layer['digest'].split(':')[1] + '/data'
-                  print(" * Updating atime of file: " + layerfile)
-                  statlayerfile = os.stat(layerfile)
-                  os.utime(statlayerfile)
+                  print(" * Updating atime of file (if exists): " + layerfile)
+                  if os.path.exists(layerfile):
+                    os.utime(layerfile)
+
 
             with open(imagesfile, 'a') as f:
                 print(digest, file=f)

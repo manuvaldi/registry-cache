@@ -63,7 +63,7 @@ while true; do
     while [ $size -gt ${LIMIT} ]; do
       echo " ** Cleaning ($size > ${THLIMIT})"
       du -hs /var/lib/registry
-      ls -lu -tu -r $DOCKERDIR/registry/v2/blobs/sha256/*/*  | grep blobs | head -n 1 | tr -d ":" | xargs rm -Rf
+      find $DOCKERDIR/registry/v2/blobs/sha256 -name data -exec stat -c '%x %n' {} \;  | sort -g | head -n 1 | awk '{sub(/data/,"");print $4}' | xargs rm -Rf
       echo " ** Executing Last Garbage Collector...."
       registry garbage-collect /etc/docker/registry/config.yml &>/dev/null
       size=$(du -s $DOCKERDIR | awk '{print $1}')
