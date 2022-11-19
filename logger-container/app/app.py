@@ -117,6 +117,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             digestarray = digest.split(":")
             blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
+            updateatime(blobfile)
             print(" * Blobfile " + blobfile )
             if os.getenv('TEST') == "true":
               blobfile = os.getenv('TESTBLOBFILE')
@@ -132,10 +133,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 for layer in digestblobjson['layers']:
                   print(" * Layer digest to print: " + layer['digest'])
                   layerfile = registrydir + '/docker/registry/v2/blobs/sha256/' + layer['digest'].split(':')[1][:2] + '/' + layer['digest'].split(':')[1] + '/data'
-                  print(" * Updating atime of file (if exists): " + layerfile)
-                  if os.path.exists(layerfile):
-                    os.utime(layerfile)
-
+                  updateatime(layerfile)
 
             with open(imagesfile, 'a') as f:
                 print(digest, file=f)
@@ -143,6 +141,12 @@ class RequestHandler(BaseHTTPRequestHandler):
             print(time.asctime() + " " +
                   "Error: token is not equal to token in env variable TOKEN")
             return False
+
+def updateatime(file):
+
+  print(" * Updating atime of file (if exists): " + file)
+  if os.path.exists(file):
+    os.utime(layerfile)
 
 
 def url_to_dict(url):
