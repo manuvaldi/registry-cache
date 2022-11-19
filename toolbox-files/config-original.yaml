@@ -7,6 +7,12 @@ storage:
     rootdirectory: /var/lib/registry
   delete:
     enabled: true
+  maintenance:
+    uploadpurging:
+      enabled: true
+      age: 2h
+      interval: 24h
+      dryrun: false    
 http:
   addr: :5000
   headers:
@@ -16,6 +22,7 @@ health:
     enabled: true
     interval: 10s
     threshold: 3
+
 notifications:
  endpoints:
    - name: logger
