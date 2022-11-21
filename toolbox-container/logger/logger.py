@@ -6,12 +6,20 @@ import time
 import json
 import subprocess
 import os
-
+import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-sys.stdout.flush()
-
 registrydir = "/var/lib/registry"
+
+# Init Logger
+log = logging.getLogger('LOGGER')
+log.setLevel(logging.INFO)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+log.addHandler(handler)
 
 class RequestHandler(BaseHTTPRequestHandler):
 
@@ -30,10 +38,10 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         request_path = self.path
 
-        print("\n----- Request Start ----->\n")
-        print(request_path)
-        print(self.headers)
-        print("<----- Request End -----\n")
+        # print("\n----- Request Start ----->\n")
+        # print(request_path)
+        # print(self.headers)
+        # print("<----- Request End -----\n")
 
         self._set_headers()
 
@@ -98,35 +106,58 @@ class RequestHandler(BaseHTTPRequestHandler):
             #       digest, timestamp, actor, action)
 
 
-        digestarray = digest.split(":")
-        blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
 
         # Update atime of requested blob
-        print(" * Blobfile: " + blobfile )
-        updateatime(blobfile)
+        updateatimedigest(digest)
+
 
         # Checking if blob is a json manifest with layers specified in it
-        f = open(blobfile,'r')
-        try:
-            digestblobjson = json.load(f)
-            isJson = True
-        except:
-            print(" * Layer blob is not json ")
-            isJson = False
-        f.close()
+        digestblobjson = getjson(digest)
+        # blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digest.split(":")[2][:2] + '/' + digest.split(":")[2] + '/data'
+        # f = open(blobfile,'r')
+        # try:
+        #     digestblobjson = json.load(f)
+        #     isJson = True
+        # except:
+        #     log.info(" * Layer blob is not json ")
+        #     isJson = False
+        # f.close()
 
         # Loop in layers and update atime of layer blobs
-        if isJson and 'layers' in digestblobjson:
+        # if digestblobjson['layers']:
+        if digestblobjson is not None:
             for layer in digestblobjson['layers']:
-              print(" * Layer digest to print: " + layer['digest'])
-              layerfile = registrydir + '/docker/registry/v2/blobs/sha256/' + layer['digest'].split(':')[1][:2] + '/' + layer['digest'].split(':')[1] + '/data'
-              updateatime(layerfile)
+              log.info(" * Layer found: " + layer['digest'])
+              updateatimedigest(layer['digest'])
 
 
-def updateatime(file):
+def getjson(digest):
+    digestarray = digest.split(":")
+    digesthash = digestarray[1]
+    blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digesthash[:2] + '/' + digesthash + '/data'
+    if os.path.exists(blobfile):
+        f = open(blobfile,'r')
+        try:
+            blobjson = json.load(f)
+            isJson = True
+        except:
+            log.info(" * Layer blob is not json ")
+            isJson = False
+        f.close()
+        if isJson:
+            return blobjson
+        else:
+            return None;
 
-  print(" * Updating atime of file (if exists): " + file)
-  if os.path.exists(file):
+def updateatimedigest(digest):
+
+  digestarray = digest.split(":")
+  digesthash = digestarray[1]
+  blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digesthash[:2] + '/' + digesthash + '/data'
+
+  if os.path.exists(blobfile):
+    log.info(" * Updating atime of digest: " + digest )
+    log.info(" * Updating atime of file: " + blobfile)
     os.utime(file)
 
 
@@ -146,7 +177,7 @@ def main(server_class=HTTPServer, handler_class=RequestHandler, server='0.0.0.0'
 
     server_address = (server, port)
     httpd = server_class(server_address, handler_class)
-    print(time.asctime() + " " + "Server Starts - %s:%s" %
+    log.info("Server Starts - %s:%s" %
           (server, port))
 
     try:
@@ -155,7 +186,7 @@ def main(server_class=HTTPServer, handler_class=RequestHandler, server='0.0.0.0'
         pass
 
     httpd.server_close()
-    print(time.asctime() + " " + "Server Stops - %s:%s" %
+    log.info("Server Stops - %s:%s" %
           (server, port))
 
     return True
