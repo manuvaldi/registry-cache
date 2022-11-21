@@ -43,7 +43,7 @@ spec:
           mountPath: /var/lib/registry
       - name: registry
         imagePullPolicy: Always
-        image: quay.io/mvalledi/registry-cache-toolbox:dev
+        image: quay.io/mvalledi/registry-cache-registry:dev
         env:
         - name: REGISTRY_HTTP_TLS_CERTIFICATE
           value: "/certs/domain2.crt"
