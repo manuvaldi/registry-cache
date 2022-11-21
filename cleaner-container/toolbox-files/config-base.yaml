@@ -7,12 +7,6 @@ storage:
     rootdirectory: /var/lib/registry
   delete:
     enabled: true
-  maintenance:
-    uploadpurging:
-      enabled: true
-      age: 2h
-      interval: 24h
-      dryrun: false    
 http:
   addr: :5000
   headers:
@@ -26,7 +20,7 @@ health:
 notifications:
  endpoints:
    - name: logger
-     url: http://127.0.0.1:8000?token=replace-token-name&hook=logger
+     url: http://127.0.0.1:8000?hook=logger
      timeout: 1000ms
      threshold: 1
      backoff: 1s

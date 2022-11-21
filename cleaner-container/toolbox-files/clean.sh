@@ -1,7 +1,8 @@
-HLIMIT="${CLEANER_MAXSIZE:-1G}"
+HLIMIT="${CLEANER_MAXSIZE:-10G}"
 THRESHOLD="${CLEANER_THRESHOLD_PERCENTAGE:-20}"
-RUNEVERY="${CLEANER_RUNEVERY_TIME:-15m}"
+RUNEVERY="${CLEANER_RUNEVERY_TIME:-30m}"
 
+CONFIGFILE=$1
 
 ##### Functions
 
@@ -22,18 +23,17 @@ function human2bytes()
        /TB$/{    printpower($1, 10,  9)}'
 }
 
-## Kudos https://unix.stackexchange.com/a/44087
+## Kudos https://github.com/aya/infra/blob/master/scripts/img-compressr.sh#L135
 function bytes2human() {
-  echo $1 | awk '
-    function human(x) {
-        if (x<1000) {return x} else {x/=1024}
-        s="MGTEPZY";
-        while (x>=1000 && length(s)>1)
-            {x/=1024; s=substr(s,2)}
-        return int(x+0.5) substr(s,1,1)
-    }
-    {sub(/^[0-9]+/, human($1)); print}'
+    b=${1:-0}; d=''; s=1; S=(Bytes {K,M,G,T,P,E,Z,Y}B)
+    while ((b > 1024)); do
+        d="$(printf ".%02d" $((b % 1024 * 100 / 1024)))"
+        b=$((b / 1024))
+        let s++
+    done
+    echo "$b$d ${S[$s]}"
 }
+
 
 function human2seconds()
 {
@@ -61,11 +61,13 @@ while true; do
   echo " ** CURRENT SIZE: $size (${sizeh})"
   if [ $size -gt ${THLIMIT} ]; then
     while [ $size -gt ${LIMIT} ]; do
-      echo " ** Cleaning ($size > ${THLIMIT})"
+      echo " ** Cleaning ($sizeh > $(bytes2human ${THLIMIT}))"
       du -hs /var/lib/registry
-      find $DOCKERDIR/registry/v2/blobs/sha256 -name data -exec stat -c '%x %n' {} \;  | sort -g | head -n 1 | awk '{sub(/data/,"");print $4}' | xargs rm -Rf
+      blobtodelete=$(find $DOCKERDIR/registry/v2/blobs/sha256 -name data -exec stat -c '%x %n' {} \;  | sort -n | head -n 1 | awk '{sub(/data/,"");print $4}')
+      echo " ** Removing blob: $blobtodelete"
+      rm -Rf $blobtodelete
       echo " ** Executing Last Garbage Collector...."
-      registry garbage-collect /etc/docker/registry/config.yml &>/dev/null
+      registry garbage-collect $CONFIGFILE &>/dev/null
       sleep 5
       size=$(du -s $DOCKERDIR | awk '{print $1}')
       sizeh=$(du -hs $DOCKERDIR | awk '{print $1}')

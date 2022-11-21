@@ -10,8 +10,8 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 sys.stdout.flush()
+
 registrydir = "/var/lib/registry"
-imagesfile = registrydir + "/images.log"
 
 class RequestHandler(BaseHTTPRequestHandler):
 
@@ -37,20 +37,14 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         self._set_headers()
 
-        self.wfile.write(
-            "<html><head><titleDocker Registry Notifications</title></head>".encode("utf-8"))
-        self.wfile.write(
-            "<body><b>BaseHTTPServer for Docker Registry Notifications.</b><br><i>The server sends a message when the image pushed to private docker registry.</i>".encode("utf-8"))
+        self.wfile.write("<html><head><titleDocker Registry Notifications</title></head>".encode("utf-8"))
+        self.wfile.write("<body><b>BaseHTTPServer for Docker Registry Notifications.</b><br><i>The server sends a message when the image pushed to private docker registry.</i>".encode("utf-8"))
         self.wfile.write("<br><br>".encode("utf-8"))
-        self.wfile.write(
-            "<a href='https://docs.docker.com/registry/configuration/'>Docker registry configuration</a><br>".encode("utf-8"))
-        self.wfile.write(
-            "<a href='https://docs.docker.com/registry/notifications'>Docker registry notifications</a><br>".encode("utf-8"))
-        self.wfile.write(
-            "<a href='https://docs.python.org/3/library/http.server.html'>Python 3 HTTP servers</a><br>".encode("utf-8"))
+        self.wfile.write("<a href='https://docs.docker.com/registry/configuration/'>Docker registry configuration</a><br>".encode("utf-8"))
+        self.wfile.write("<a href='https://docs.docker.com/registry/notifications'>Docker registry notifications</a><br>".encode("utf-8"))
+        self.wfile.write("<a href='https://docs.python.org/3/library/http.server.html'>Python 3 HTTP servers</a><br>".encode("utf-8"))
         self.wfile.write("<br><hr>".encode("utf-8"))
-        self.wfile.write(("You accessed Request: <b>%s</b>" %
-                          request_path).encode("utf-8"))
+        self.wfile.write(("You accessed Request: <b>%s</b>" % request_path).encode("utf-8"))
         self.wfile.write("</body></html>".encode("utf-8"))
 
         return True
@@ -60,7 +54,6 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         request_path = self.path
         request_path_parse = url_to_dict(request_path)
-        token = str(request_path_parse['token'])
         hook = str(request_path_parse['hook'])
 
         request_headers = self.headers
@@ -104,43 +97,31 @@ class RequestHandler(BaseHTTPRequestHandler):
             # print(repository, url, mediaType, tag,
             #       digest, timestamp, actor, action)
 
-        if token == os.getenv('TOKEN'):
-            try:
-              with open(imagesfile, "r") as fp:
-                  lines = fp.readlines()
-              with open(imagesfile, "w") as fp:
-                  for line in lines:
-                      if line.strip("\n") != digest:
-                          fp.write(line)
-            except:
-              print(imagesfile + " file doesn't exists, no problem, continue")
 
-            digestarray = digest.split(":")
-            blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
-            updateatime(blobfile)
-            print(" * Blobfile " + blobfile )
-            if os.getenv('TEST') == "true":
-              blobfile = os.getenv('TESTBLOBFILE')
-            f = open(blobfile,'r')
-            try:
-                digestblobjson = json.load(f)
-                isJson = True
-            except:
-                print(" * Blob is not json: " + error)
-                isJson = False
-            f.close()
-            if isJson and 'layers' in digestblobjson:
-                for layer in digestblobjson['layers']:
-                  print(" * Layer digest to print: " + layer['digest'])
-                  layerfile = registrydir + '/docker/registry/v2/blobs/sha256/' + layer['digest'].split(':')[1][:2] + '/' + layer['digest'].split(':')[1] + '/data'
-                  updateatime(layerfile)
+        digestarray = digest.split(":")
+        blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digestarray[1][:2] + '/' + digestarray[1] + '/data'
 
-            with open(imagesfile, 'a') as f:
-                print(digest, file=f)
-        else:
-            print(time.asctime() + " " +
-                  "Error: token is not equal to token in env variable TOKEN")
-            return False
+        # Update atime of requested blob
+        print(" * Blobfile: " + blobfile )
+        updateatime(blobfile)
+
+        # Checking if blob is a json manifest with layers specified in it
+        f = open(blobfile,'r')
+        try:
+            digestblobjson = json.load(f)
+            isJson = True
+        except:
+            print(" * Layer blob is not json ")
+            isJson = False
+        f.close()
+
+        # Loop in layers and update atime of layer blobs
+        if isJson and 'layers' in digestblobjson:
+            for layer in digestblobjson['layers']:
+              print(" * Layer digest to print: " + layer['digest'])
+              layerfile = registrydir + '/docker/registry/v2/blobs/sha256/' + layer['digest'].split(':')[1][:2] + '/' + layer['digest'].split(':')[1] + '/data'
+              updateatime(layerfile)
+
 
 def updateatime(file):
 

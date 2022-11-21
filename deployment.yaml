@@ -29,7 +29,7 @@ spec:
           type: Directory
       restartPolicy: Always
       containers:
-      - name: toolbox
+      - name: cleaner
         image: quay.io/mvalledi/registry-cache-toolbox:dev
         env:
         - name: CLEANER_MAXSIZE
@@ -37,23 +37,13 @@ spec:
         - name: CLEANER_THRESHOLD_PERCENTAGE
           value: "20" # Percentage threshold. If cache takes CLEANER_MAXSIZE+CLEANER_THRESHOLD_PERCENTAGE%, then cleaner cleans
         - name: CLEANER_RUNEVERY_TIME
-          value: "30s" # Cleaner check every CLEANER_RUNEVERY_TIME the cache size. In format "1h2m3s"
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/registry
-      - name: logger
-        image: quay.io/mvalledi/registry-cache-logger:dev
-        env:
-        - name: TOKEN
-          value: "replace-token-name" # tmp token
+          value: "30m" # Cleaner check every CLEANER_RUNEVERY_TIME the cache size. In format "1h2m3s"
         volumeMounts:
         - name: data
           mountPath: /var/lib/registry
       - name: registry
         imagePullPolicy: Always
         image: quay.io/mvalledi/registry-cache-toolbox:dev
-        command: ["/bin/sh","-c"]
-        args: ["sh /toolbox/generate-config.sh && registry serve /etc/docker/registry/config.yml"]
         env:
         - name: REGISTRY_HTTP_TLS_CERTIFICATE
           value: "/certs/domain2.crt"
@@ -64,7 +54,7 @@ spec:
         ports:
         - name: registry-proxy
           containerPort: 5000
-          hostPort: 5002
+          hostPort: 5000
         hostNetwork: true
         volumeMounts:
         - name: pull-secret

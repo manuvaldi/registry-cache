@@ -1,0 +1,26 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+
+notifications:
+ endpoints:
+   - name: logger
+     url: http://127.0.0.1:8000?hook=logger
+     timeout: 1000ms
+     threshold: 1
+     backoff: 1s
