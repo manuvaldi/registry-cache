@@ -125,7 +125,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # Loop in layers and update atime of layer blobs
         # if digestblobjson['layers']:
-        if digestblobjson is not None:
+        if 'layers' in digestblobjson.keys():
             for layer in digestblobjson['layers']:
               log.info(" * Layer found: " + layer['digest'])
               updateatimedigest(layer['digest'])
@@ -157,7 +157,7 @@ def updateatimedigest(digest):
 
   if os.path.exists(blobfile):
     log.info(" * Updating atime of digest: " + digest )
-    log.info(" * Updating atime of file: " + blobfile)
+    log.debug(" * Updating atime of file: " + blobfile)
     os.utime(blobfile)
 
 
