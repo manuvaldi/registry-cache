@@ -158,7 +158,7 @@ def updateatimedigest(digest):
   if os.path.exists(blobfile):
     log.info(" * Updating atime of digest: " + digest )
     log.info(" * Updating atime of file: " + blobfile)
-    os.utime(file)
+    os.utime(blobfile)
 
 
 def url_to_dict(url):
