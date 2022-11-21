@@ -57,12 +57,12 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         return True
 
+
     def do_POST(self):
 
-
         request_path = self.path
-        request_path_parse = url_to_dict(request_path)
-        hook = str(request_path_parse['hook'])
+        #request_path_parse = url_to_dict(request_path)
+        #hook = str(request_path_parse['hook'])
 
         request_headers = self.headers
         # content_length = request_headers.getheaders('content-length')
@@ -108,26 +108,18 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
         # Update atime of requested blob
+        log.info("Digest request: " + digest)
         updateatimedigest(digest)
 
 
-        # Checking if blob is a json manifest with layers specified in it
+        # Checking if blob is a json and return None if not
         digestblobjson = getjson(digest)
-        # blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digest.split(":")[2][:2] + '/' + digest.split(":")[2] + '/data'
-        # f = open(blobfile,'r')
-        # try:
-        #     digestblobjson = json.load(f)
-        #     isJson = True
-        # except:
-        #     log.info(" * Layer blob is not json ")
-        #     isJson = False
-        # f.close()
 
         # Loop in layers and update atime of layer blobs
-        # if digestblobjson['layers']:
-        if 'layers' in digestblobjson.keys():
+        if digestblobjson is not None and 'layers' in digestblobjson.keys():
+            log.info("Searching for layers...")
             for layer in digestblobjson['layers']:
-              log.info(" * Layer found: " + layer['digest'])
+              log.info("Layer found: " + layer['digest'])
               updateatimedigest(layer['digest'])
 
 
@@ -141,7 +133,7 @@ def getjson(digest):
             blobjson = json.load(f)
             isJson = True
         except:
-            log.info(" * Layer blob is not json ")
+            log.info("Layer blob is not json ")
             isJson = False
         f.close()
         if isJson:
@@ -156,8 +148,8 @@ def updateatimedigest(digest):
   blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digesthash[:2] + '/' + digesthash + '/data'
 
   if os.path.exists(blobfile):
-    log.info(" * Updating atime of digest: " + digest )
-    log.debug(" * Updating atime of file: " + blobfile)
+    log.info("Updating access time of digest: " + digest )
+    log.debug("Updating access time of file: " + blobfile)
     os.utime(blobfile)
 
 
