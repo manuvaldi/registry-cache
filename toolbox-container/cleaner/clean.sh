@@ -35,13 +35,19 @@ function bytes2human() {
 }
 
 
-function human2seconds()
-{
+function human2seconds() {
   local time="$(echo $1 | sed 's/h/h\n/g' | sed 's/m/m\n/g' | sed 's/s/s\n/g' )"
   local hours=$(echo "$time" | grep h | tr -d 'h' | tr -d ' ')
   local mins=$(echo "$time" | grep m | tr -d 'm' | tr -d ' ')
   local secs=$(echo "$time" | grep s | tr -d 's' | tr -d ' ')
   echo ${hours:-0} ${mins:-0} ${secs:-0} | awk '{printf "%s",$1*60*60+$2*60+$3}'
+}
+
+function print_config() {
+  echo " * LIMIT           : ${LIMIT} (${HLIMIT})"
+  echo " * LIMIT THRESHOLD : ${THRESHOLD}%"
+  echo " * LIMIT TH SIZE   : ${THLIMIT} ($(bytes2human ${THLIMIT}))"
+  echo " * RUNNING EVERY   : ${RUNEVERYSECONDS} seconds ($RUNEVERY)"
 }
 ##### Main
 
@@ -50,10 +56,7 @@ THLIMIT=$(echo ${LIMIT} $THRESHOLD | awk '{printf "%4.0f\n",$1*(1+($2/100))}')
 RUNEVERYSECONDS=$(human2seconds $RUNEVERY)
 DOCKERDIR=/var/lib/registry/docker
 
-echo " * LIMIT           : ${LIMIT} (${HLIMIT})"
-echo " * LIMIT THRESHOLD : ${THRESHOLD}%"
-echo " * LIMIT TH SIZE   : ${THLIMIT} ($(bytes2human ${THLIMIT}))"
-echo " * RUNNING EVERY   : ${RUNEVERYSECONDS} seconds ($RUNEVERY)"
+print_config
 
 while true; do
   size=$(du -s $DOCKERDIR | awk '{print $1}')
@@ -73,6 +76,7 @@ while true; do
       sizeh=$(du -hs $DOCKERDIR | awk '{print $1}')
     done
     echo " ** AFTER CLEAN SIZE: $size ( ${sizeh} )"
+    print_config
   fi
   sleep $RUNEVERYSECONDS
 done
