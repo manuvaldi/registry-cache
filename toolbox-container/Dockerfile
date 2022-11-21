@@ -4,7 +4,7 @@ FROM python:3
 COPY logger /logger
 
 # Cleaner
-COPY toolbox-files /toolbox/
+COPY cleaner /cleaner/
 
 RUN apt-get update && apt-get install -y supervisor && \
     mkdir -p /var/log/supervisor &&  \

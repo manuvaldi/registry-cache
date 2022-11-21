@@ -11,7 +11,7 @@ function human2bytes()
 {
     echo $1 | awk \
       'BEGIN{IGNORECASE = 1}
-       function printpower(n,b,p) {printf "%u\n", n*b^p; next}
+       function printpower(n,b,p) {printf "%u\n", n*b^p;}
        /[0-9]$/{print $1;next};
        /K(iB)?$/{printpower($1,  2, 1)};
        /M(iB)?$/{printpower($1,  2, 10)};
@@ -46,8 +46,8 @@ function human2seconds()
 ##### Main
 
 LIMIT=$(human2bytes ${HLIMIT})
-RUNEVERYSECONDS=$(human2seconds $RUNEVERY)
 THLIMIT=$(echo ${LIMIT} $THRESHOLD | awk '{printf "%4.0f\n",$1*(1+($2/100))}')
+RUNEVERYSECONDS=$(human2seconds $RUNEVERY)
 DOCKERDIR=/var/lib/registry/docker
 
 echo " * LIMIT           : ${LIMIT} (${HLIMIT})"

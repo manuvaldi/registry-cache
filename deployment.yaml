@@ -29,7 +29,7 @@ spec:
           type: Directory
       restartPolicy: Always
       containers:
-      - name: cleaner
+      - name: toolbox
         image: quay.io/mvalledi/registry-cache-toolbox:dev
         env:
         - name: CLEANER_MAXSIZE
