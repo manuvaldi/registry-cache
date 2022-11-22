@@ -117,9 +117,9 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # Loop in layers and update atime of layer blobs
         if digestblobjson is not None and 'layers' in digestblobjson.keys():
-            log.info("Searching for layers...")
+            log.debug("Searching for layers...")
             for layer in digestblobjson['layers']:
-              log.info("Layer found: " + layer['digest'])
+              log.debug("Layer found: " + layer['digest'])
               updateatimedigest(layer['digest'])
 
 
@@ -133,7 +133,7 @@ def getjson(digest):
             blobjson = json.load(f)
             isJson = True
         except:
-            log.info("Layer blob is not json ")
+            log.debug("Layer blob is not json ")
             isJson = False
         f.close()
         if isJson:

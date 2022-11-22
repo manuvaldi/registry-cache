@@ -175,6 +175,7 @@ def main(config='/cleaner/config-base.yaml'):
     humanlimit = os.environ.get('CLEANER_MAXSIZE', '10G')
     threshold = int(os.environ.get('CLEANER_THRESHOLD_PERCENTAGE', '20'))
     humanrunevery = os.environ.get('CLEANER_RUNEVERY_TIME', '30m')
+    btwdeletestime = os.environ.get('CLEANER_BTWDELETES_TIME', '2')
 
     limit = int(human2bytes(humanlimit))
     thresholdlimit = limit * ( 1 + (threshold/100))
@@ -189,17 +190,24 @@ def main(config='/cleaner/config-base.yaml'):
         sizehuman=bytes2human(size)
         log.info("CURRENT SIZE: %s (%s)" % (size, sizehuman))
         if size > thresholdlimit:
+            log.info("** CLEANING START **")
             while size > limit:
                 log.info("Cleaning (%s > %s)" % (sizehuman, humanlimit))
+
                 bloboldestfile=find_oldest_file(dockerdir + '/registry/v2/blobs/sha256')
                 log.info("Removing blob: " + bloboldestfile)
                 rmdir(bloboldestfile)
-                log.info("Executing Last Garbage Collector....")
+
+                log.info("Executing Registry Garbage Collector....")
                 run_garbage_collect(config)
-                time.sleep(5)
+
+                time.sleep(btwdeletestime)
+
                 size=get_size(dockerdir)
                 sizehuman=bytes2human(size)
-            log.info("AFTER CLEAN SIZE: %s (%s)" % (size, sizehuman))
+
+            log.info("** CLEANING FINISH **")
+            log.info("AFTER CLEANING SIZE: %s (%s)" % (size, sizehuman))
             printconfig()
         time.sleep(runeveryseconds)
 
