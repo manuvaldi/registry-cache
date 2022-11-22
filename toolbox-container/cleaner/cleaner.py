@@ -175,7 +175,7 @@ def main(config='/cleaner/config-base.yaml'):
     humanlimit = os.environ.get('CLEANER_MAXSIZE', '10G')
     threshold = int(os.environ.get('CLEANER_THRESHOLD_PERCENTAGE', '20'))
     humanrunevery = os.environ.get('CLEANER_RUNEVERY_TIME', '30m')
-    btwdeletestime = os.environ.get('CLEANER_BTWDELETES_TIME', '2')
+    btwdeletestime = int(os.environ.get('CLEANER_BTWDELETES_TIME', '2'))
 
     limit = int(human2bytes(humanlimit))
     thresholdlimit = limit * ( 1 + (threshold/100))
