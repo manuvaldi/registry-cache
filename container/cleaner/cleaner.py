@@ -165,7 +165,7 @@ def rmdir(directory):
 
 
 
-def main(config='/cleaner/config-base.yaml'):
+def main(config='/toolbox/config-base.yaml'):
 
 
 

@@ -29,8 +29,8 @@ spec:
           type: Directory
       restartPolicy: Always
       containers:
-      - name: toolbox
-        image: quay.io/mvalledi/registry-cache-toolbox:dev
+      - name: registry-cache
+        image: quay.io/mvalledi/registry-cache:dev
         env:
         - name: CLEANER_MAXSIZE
           value: "10G" # Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...)
@@ -38,13 +38,6 @@ spec:
           value: "20" # Percentage threshold. If cache takes CLEANER_MAXSIZE+CLEANER_THRESHOLD_PERCENTAGE%, then cleaner cleans
         - name: CLEANER_RUNEVERY_TIME
           value: "30m" # Cleaner check every CLEANER_RUNEVERY_TIME the cache size. In format "1h2m3s"
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/registry
-      - name: registry
-        imagePullPolicy: Always
-        image: quay.io/mvalledi/registry-cache-registry:dev
-        env:
         - name: REGISTRY_HTTP_TLS_CERTIFICATE
           value: "/certs/domain2.crt"
         - name: REGISTRY_HTTP_TLS_KEY
@@ -52,9 +45,12 @@ spec:
         - name: REGISTRY_STORAGE_DELETE_ENABLED
           value: 'true'
         ports:
-        - name: registry-proxy
+        - name: registry
           containerPort: 5000
           hostPort: 5000
+        - name: registry-metrics
+          containerPort: 5001
+          hostPort: 5001
         hostNetwork: true
         volumeMounts:
         - name: pull-secret
