@@ -1,24 +1,26 @@
-FROM python:3
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7
 
-RUN apt-get update && apt-get install -y supervisor --no-install-recommends && \
-    mkdir -p /var/log/supervisor &&  \
-    apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
+ENV PATH /usr/local/bin:$PATH
 
-# Python requirements
+RUN microdnf update \
+    && microdnf install \
+       python3 wget binutils findutils tar gzip ca-certificates tzdata procps-ng jq \
+    && microdnf clean all  \
+    && rm -rf /var/cache/yum \
+    && rpm -e --nodeps $(rpm -qa '*rpm*' '*dnf*' '*libsolv*' '*hawkey*' 'yum*')
+
+# Python requirements and supervisor installation
 COPY requirements.txt /requirements.txt
-RUN mkdir -p /var/lib/registry/ && \
-    pip3 install -U -r /requirements.txt
+
+RUN mkdir -p /var/lib/registry/  \
+    && mkdir -p /etc/supervisor/conf.d /var/log/supervisor \
+    && pip3 install -U -r /requirements.txt
 
 # Registry binary
 RUN wget -O registry.tar.gz https://github.com/distribution/distribution/releases/download/v2.8.1/registry_2.8.1_linux_amd64.tar.gz && \
     tar --extract --verbose --file registry.tar.gz --directory /bin/ registry && \
     rm registry.tar.gz && \
     mkdir -p /etc/docker/registry/
-
-# jq binary
-RUN wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
-  mv jq-linux64 /usr/local/bin/jq && \
-  chmod +x /usr/local/bin/jq
 
 # Logger
 COPY logger /logger
@@ -30,11 +32,11 @@ COPY cleaner /cleaner
 COPY toolbox /toolbox
 
 # Supervisord config
-COPY /supervisord/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
+COPY /supervisord/supervisord-base.conf /etc/supervisor/supervisord.conf
+COPY /supervisord/supervisord.conf      /etc/supervisor/conf.d/supervisord.conf
 
 
 VOLUME ["/var/lib/registry"]
 EXPOSE 8000
 
-ENTRYPOINT ["/usr/bin/supervisord"]
+CMD ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

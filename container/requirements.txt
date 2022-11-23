@@ -1,2 +1,2 @@
 pip
-psutil==5.9.4
+supervisor==4.2.2
