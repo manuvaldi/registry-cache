@@ -75,7 +75,7 @@ podman run -d --name registry-cache \
   -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
   -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \  
   -p 5000:5000 -p 5001:5001 \
-  quay.io/mvalledi/registry-cache:dev
+  quay.io/mvalledi/registry-cache:main
 
 ```
 
@@ -98,7 +98,7 @@ or
 
 ## Firewall config
 
-If a firewall is running on the hosts, the exposed ports (5000 and 5001) will need to be permitted. 
+If a firewall is running on the hosts, the exposed ports (5000 and 5001) will need to be permitted.
 
 ```
 # # Registry port
