@@ -90,15 +90,21 @@ or
 `podman stop registry-cache
 ```
 
-## Configuration env vars
+## Configuration ENV vars
+
+- `CLEANER_MAXSIZE`: Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). By default "10G"
+- `CLEANER_THRESHOLD_PERCENTAGE`: Percentage threshold. If cache takes more than `CLEANER_MAXSIZE` + `CLEANER_THRESHOLD_PERCENTAGE%`, then cleaner cleans. By default '20' (== 20%).
+- `CLEANER_RUNEVERY_TIME`:Cleaner check every `CLEANER_RUNEVERY_TIME` the cache size. In format "1h2m3s". By default "30m" (== 30 minutes).
 
 ## Firewall config
 
-If a firewall is running on the hosts, the exposed port (5000) will need to be permitted.
+If a firewall is running on the hosts, the exposed ports (5000 and 5001) will need to be permitted. 
 
 ```
+# # Registry port
 # firewall-cmd --add-port=5000/tcp --zone=internal --permanent
 # firewall-cmd --add-port=5000/tcp --zone=public --permanent
+# # Metrics port
 # firewall-cmd --add-port=5001/tcp --zone=internal --permanent
 # firewall-cmd --add-port=5001/tcp --zone=public --permanent
 # firewall-cmd --reload
