@@ -4,18 +4,18 @@ log:
     disabled: true
   level: warn
   fields:
-    service: REGISTRY
+    service: $REGISTRY
 storage:
   filesystem:
     rootdirectory: /var/lib/registry
   delete:
-    enabled: true
+    enabled: false
 http:
-  addr: :5000
+  addr: :$LISTENPORT
   headers:
     X-Content-Type-Options: [nosniff]
   debug:
-    addr: :5001
+    addr: :$LISTENPORTSTATS
 health:
   storagedriver:
     enabled: true

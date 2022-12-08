@@ -4,10 +4,11 @@ ENV PATH /usr/local/bin:$PATH
 
 RUN microdnf update \
     && microdnf install \
-       python3 wget binutils findutils tar gzip ca-certificates tzdata procps-ng jq \
+       python3 wget binutils findutils tar gzip ca-certificates tzdata procps-ng jq gettext \
+       haproxy rsyslog \
     && microdnf clean all  \
-    && rm -rf /var/cache/yum \
-    && rpm -e --nodeps $(rpm -qa '*rpm*' '*dnf*' '*libsolv*' '*hawkey*' 'yum*')
+    && rm -rf /var/cache/yum
+#    && rpm -e --nodeps $(rpm -qa '*rpm*' '*dnf*' '*libsolv*' '*hawkey*' 'yum*')
 
 # Python requirements and supervisor installation
 COPY requirements.txt /requirements.txt
@@ -31,10 +32,15 @@ COPY cleaner /cleaner
 # Toolbox
 COPY toolbox /toolbox
 
+# haproxy
+COPY haproxy /haproxy
+
 # Supervisord config
 COPY /supervisord/supervisord-base.conf /etc/supervisor/supervisord.conf
 COPY /supervisord/supervisord.conf      /etc/supervisor/conf.d/supervisord.conf
 
+# Rsyslog config
+COPY /rsyslog/rsyslog.conf /etc/rsyslog.d/
 
 VOLUME ["/var/lib/registry"]
 EXPOSE 8000

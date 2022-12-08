@@ -40,6 +40,14 @@ authentication.
 
 > Enter the respective options for your certificate. The CN= value is the hostname of your host. The host's hostname should be resolvable by DNS or the /etc/hosts file.
 
+and then build the .pem file:
+
+```
+cat /opt/registry/certs/domain.crt /opt/registry/certs/domain.key > /certs/certs.pem
+```
+
+IMPORTANT: the name of the PEM must be `certs.pem`
+
 The certificate will also have to be trusted by your hosts and clients:
 ```
 # cp /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
@@ -68,13 +76,11 @@ podman run -d --name registry-cache \
   -e CLEANER_THRESHOLD_PERCENTAGE=20 \
   -e CLEANER_RUNEVERY_TIME=30m \
   -v /opt/registry/certs:/certs:z \
-  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain2.crt \
-  -e REGISTRY_HTTP_TLS_KEY=/certs/domain2.key \
   -v /opt/registry/auth:/auth:z  
   -e "REGISTRY_AUTH=htpasswd" \
   -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
   -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \  
-  -p 5000:5000 -p 5001:5001 \
+  -p 5000:5000 \
   quay.io/mvalledi/registry-cache:main
 
 ```
@@ -95,6 +101,7 @@ or
 - `CLEANER_MAXSIZE`: Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). By default "10G"
 - `CLEANER_THRESHOLD_PERCENTAGE`: Percentage threshold. If cache takes more than `CLEANER_MAXSIZE` + `CLEANER_THRESHOLD_PERCENTAGE%`, then cleaner cleans. By default '20' (== 20%).
 - `CLEANER_RUNEVERY_TIME`:Cleaner check every `CLEANER_RUNEVERY_TIME` the cache size. In format "1h2m3s". By default "30m" (== 30 minutes).
+- `IGNOREREGISTRYLIST`: Space separated list of registries to be ignored from pull secret. By default 'cloud.openshift.com'.
 
 ## Firewall config
 
