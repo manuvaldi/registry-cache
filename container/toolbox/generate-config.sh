@@ -55,7 +55,7 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | join(" ")'); do
   # Generating backends for haproxy
   echo "backend $registry_clean" > /haproxy/config-registry-backend-$registry_clean.cfg
   echo "    reqrep ^(.*)/v2/$registry/(.*)     \1/v2/\2" >> /haproxy/config-registry-backend-$registry_clean.cfg
-  echo "    server registry_backend 127.0.0.1:$LISTENPORT check-ssl ssl verify none" >> /haproxy/config-registry-backend-$registry_clean.cfg
+  echo "    server registry_backend 127.0.0.1:$LISTENPORT " >> /haproxy/config-registry-backend-$registry_clean.cfg
 
   echo ""
 done
