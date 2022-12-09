@@ -30,7 +30,7 @@ spec:
       restartPolicy: Always
       containers:
       - name: registry-cache
-        image: quay.io/mvalledi/registry-cache:dev
+        image: quay.io/mvalledi/registry-cache:latest
         env:
         - name: CLEANER_MAXSIZE
           value: "10G" # Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...)
