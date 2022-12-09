@@ -11,15 +11,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 registrydir = "/var/lib/registry"
 
-# Init Logger
-log = logging.getLogger('LOGGER')
-log.setLevel(logging.INFO)
+class LoggerAdapter(logging.LoggerAdapter):
+    def __init__(self, logger, prefix):
+        super(LoggerAdapter, self).__init__(logger, {})
+        self.prefix = prefix
 
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-log.addHandler(handler)
+    def process(self, msg, kwargs):
+        return '[%s] %s' % (self.prefix, msg), kwargs
 
 class RequestHandler(BaseHTTPRequestHandler):
 
@@ -61,8 +59,9 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
 
         request_path = self.path
-        #request_path_parse = url_to_dict(request_path)
-        #hook = str(request_path_parse['hook'])
+        request_path_parse = url_to_dict(request_path)
+        registry = str(request_path_parse['registry'])
+        log = LoggerAdapter(logh, registry)
 
         request_headers = self.headers
         # content_length = request_headers.getheaders('content-length')
@@ -72,11 +71,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         content_body = self.rfile.read(content_length_check)
         content_body_json = json.loads(content_body)
 
-        # print("\n----- Request Start ----->\n")
-        # print('Request: ' + request_path)
-        # print(request_headers)
-        # print(content_body)
-        # print("<----- Request End -----\n")
+        # log.debug("\n----- Request Start ----->\n")
+        # log.debug('Request: ' + request_path)
+        # log.debug(request_headers)
+        # log.debug(content_body)
+        # log.debug("<----- Request End -----\n")
 
         self._set_headers()
 
@@ -84,15 +83,15 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # print(json.dumps(content_body_json, indent=4))
 
-            # repository = content_body_json['events'][0]['target']['repository']
+            repository = content_body_json['events'][0]['target']['repository']
             # url = content_body_json['events'][0]['target']['url']
             # mediaType = content_body_json['events'][0]['target']['mediaType']
             #
-            # try:
-            #     tag = content_body_json['events'][0]['target']['tag']
+            try:
+                tag = content_body_json['events'][0]['target']['tag']
             #
-            # except KeyError:
-            #     tag = None
+            except KeyError:
+                tag = None
             #
             digest = content_body_json['events'][0]['target']['digest']
             # timestamp = content_body_json['events'][0]['timestamp']
@@ -104,12 +103,16 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # print(repository, url, mediaType, tag,
             #       digest, timestamp, actor, action)
-
+            if tag:
+                imagenrequested = repository + ":" + tag
+            else:
+                imagenrequested = repository + "@" + digest
 
 
         # Update atime of requested blob
+        log.info("Imagen request: " + imagenrequested)
         log.info("Digest request: " + digest)
-        updateatimedigest(digest)
+        updateatimedigest(digest,log)
 
 
         # Checking if blob is a json and return None if not
@@ -120,7 +123,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             log.debug("Searching for layers...")
             for layer in digestblobjson['layers']:
               log.debug("Layer found: " + layer['digest'])
-              updateatimedigest(layer['digest'])
+              updateatimedigest(layer['digest'],log)
 
 
 def getjson(digest):
@@ -141,7 +144,7 @@ def getjson(digest):
         else:
             return None;
 
-def updateatimedigest(digest):
+def updateatimedigest(digest,log):
 
   digestarray = digest.split(":")
   digesthash = digestarray[1]
@@ -169,6 +172,8 @@ def main(server_class=HTTPServer, handler_class=RequestHandler, server='0.0.0.0'
 
     server_address = (server, port)
     httpd = server_class(server_address, handler_class)
+
+    log = LoggerAdapter(logh, 'global')
     log.info("Server Starts - %s:%s" %
           (server, port))
 
@@ -185,6 +190,18 @@ def main(server_class=HTTPServer, handler_class=RequestHandler, server='0.0.0.0'
 
 
 if __name__ == '__main__':
+
+    # Init Logger
+    logh = logging.getLogger('LOGGER')
+    logh.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logh.addHandler(handler)
+
+    log = LoggerAdapter(logh, "global")
+
 
     if len(sys.argv) == 2:
         sys.exit(main(port=int(sys.argv[1])))

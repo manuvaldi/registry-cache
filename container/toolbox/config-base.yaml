@@ -25,7 +25,7 @@ health:
 notifications:
  endpoints:
    - name: logger
-     url: http://127.0.0.1:8000
+     url: http://127.0.0.1:8000?registry=$REGISTRY
      timeout: 1000ms
      threshold: 1
      backoff: 1s

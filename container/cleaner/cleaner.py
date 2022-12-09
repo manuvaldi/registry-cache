@@ -162,12 +162,12 @@ def human2seconds(string):
 
 
 def print_config(humanlimit,threshold,thresholdlimit,humanrunevery,config,registrydir):
-  log.info("Registry config : " + config)
+  log.debug("Registry config : " + config)
   log.info("Registry data dir: " + registrydir)
-  log.info("LIMIT           : %s (%s)" % (human2bytes(humanlimit), humanlimit))
-  log.info("LIMIT THRESHOLD : %s percent" % threshold)
-  log.info("LIMIT TH SIZE   : %s (%s)" % (thresholdlimit, bytes2human(thresholdlimit)))
-  log.info("RUNNING EVERY   : %s seconds (%s)" % (human2seconds(humanrunevery), humanrunevery))
+  log.info("LIMIT                : %s (%s)" % (human2bytes(humanlimit), humanlimit))
+  log.info("LIMIT THRESHOLD      : %s percent" % threshold)
+  log.info("LIMIT THRESHOLD SIZE : %s (%s)" % (thresholdlimit, bytes2human(thresholdlimit)))
+  log.info("RUNNING EVERY        : %s seconds (%s)" % (human2seconds(humanrunevery), humanrunevery))
 
 
 
@@ -213,8 +213,6 @@ def rmdir(directory):
 
 
 def main(config='/toolbox/config-base.yaml'):
-
-
 
     def printconfig():
         print_config(humanlimit, threshold, thresholdlimit, humanrunevery, config, registrydir)

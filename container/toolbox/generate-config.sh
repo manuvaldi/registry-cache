@@ -14,7 +14,7 @@ if [ -f "/generateconfig.lock" ]; then
   exit
 fi
 
-for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | join(" ")'); do
+for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | sort_by(length) | reverse | join(" ")'); do
 
   # Check if element in ignore_list
   if [[ " ${IGNOREREGISTRYLIST[*]} " =~ " ${registry} " ]]; then
@@ -50,19 +50,21 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | join(" ")'); do
   cat $TOOLBOXPATH/supervisord-config-registry-base.conf | envsubst > $SUPERVISORDPATH/config-registry-$registry_clean.conf
 
   # Generating frontend rules for haproxy
-  echo -e "\n# Rule for $registry " > /haproxy/config-registry-rule-$registry_clean.cfg
-  echo "    use_backend $registry_clean if { path_reg (/v2)?/$registry }" >> /haproxy/config-registry-rule-$registry_clean.cfg
+  echo -e "\n# Rule for $registry                                          " > /haproxy/config-registry-rule-$INDEX-$registry_clean.cfg
+  echo "    use_backend $registry_clean if { path_reg ^(?:/v2)?/$registry }" >> /haproxy/config-registry-rule-$INDEX-$registry_clean.cfg
   # Generating backends for haproxy
-  echo "backend $registry_clean" > /haproxy/config-registry-backend-$registry_clean.cfg
-  echo "    reqrep ^(.*)/v2/$registry/(.*)     \1/v2/\2" >> /haproxy/config-registry-backend-$registry_clean.cfg
-  echo "    server registry_backend 127.0.0.1:$LISTENPORT " >> /haproxy/config-registry-backend-$registry_clean.cfg
+  echo -e "\n# Backend for $registry                      " > /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
+  echo "backend $registry_clean                           " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
+  echo "    reqrep ^(.*)/v2/[a-z0-9.]*/(.*)     \1/v2/\2  " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
+  echo "    server registry_backend 127.0.0.1:$LISTENPORT " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
 
   echo ""
+
 done
 
 
 # Composing Haproxy config
-echo "    default_backend $registry_clean" > /haproxy/config-registry-default.cfg
+echo -e "\n    default_backend $registry_clean\n" > /haproxy/config-registry-default.cfg
 cat /haproxy/haproxy.cfg /haproxy/config-registry-rule-*.cfg /haproxy/config-registry-default.cfg /haproxy/config-registry-backend-*.cfg > /haproxy/haproxy-final.cfg
 
 # creating lock file

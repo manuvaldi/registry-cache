@@ -38,13 +38,12 @@ spec:
           value: "20" # Percentage threshold. If cache takes CLEANER_MAXSIZE+CLEANER_THRESHOLD_PERCENTAGE%, then cleaner cleans
         - name: CLEANER_RUNEVERY_TIME
           value: "30m" # Cleaner check every CLEANER_RUNEVERY_TIME the cache size. In format "1h2m3s"
+        - name: "IGNOREREGISTRYLIST" # List of registries to ignore from pull-secret. Ignored won't be cached
+          value: 'registry.example.com:5000 cloud.openshift.com'
         ports:
         - name: registry
           containerPort: 8443
           hostPort: 8443
-        # - name: registry-metrics
-        #   containerPort: 5001
-        #   hostPort: 5001
         hostNetwork: true
         volumeMounts:
         - name: pull-secret
