@@ -1,8 +1,8 @@
 # registry-cache
 
-Deploy one or many containers registry as a pull through cache with cleaner to control the max size. It allows private registries with credentials.
+A container/docker registry cache. This runs one or many containers registry as a pull-through cache. Includes a process as a cleaner to control the max size. It allows private registries with credentials.
 
-The deployment is a container which running some proccess running via supervisord:
+The container is a container that running some processes via supervisord:
 
 - `registry`: based on official registry v2 with an starting script to generate registry config with quay.io cache enabled. Credential are extracted from `pull-secret.json`
 - `logger`: which takes the container images requests and update the access time of the layers (blobs) and the manifests, in order to control the aging of them.
@@ -25,11 +25,11 @@ For example, if you want to cache a quay image instead of pulling `quay.io/podma
 │                  │                                     │    └────────►│                     │
 │ (reverse proxy)  ├───────┐    ┌───────────────────┐    │              │  blobs & manifests  │
 └────────┬───────┬─┘       │    │                   ├────┼─────────────►│                     │
-         │       │         └───►│  Registry cache 2 │    │              └─────────────────────┘
+         │       │         └───►│  Registry cache 2 │────│              └─────────────────────┘
          │       │              └───────────────────┘    │               ▲    ▲    ▲
          │       │              ....                     │               │    │    │
          │       │              ┌───────────────────┐    │               │    │    │
-         │       │              │                   │    │               │    │    │
+         │       │              │                   │────│               │    │    │
          │       └─────────────►│  Registry cache n ├────┼───────────────┘    │    │
          │                      └───────────────────┘    │                    │    │
          │                                               │                    │    │
@@ -158,7 +158,7 @@ podman play kube deployment.yaml --down
 ```
 or
 ```
-`podman stop registry-cache
+podman stop registry-cache
 ```
 
 ## Configuration ENV vars
@@ -204,6 +204,25 @@ Storing signatures
 
 Image is building by Quay.io. You can find it in https://quay.io/repository/mvalledi/registry-cache
 
+## Configure in Openshift
+
+You can configure your Openshift Cluster to be able to use this registry cache instance applying this yaml file:
+
+```
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: mirror-ocp
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - <your registry hostname>:8443/quay.io/openshift-release-dev/ocp-release
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - <your registry hostname>:8443/quay.io/openshift-release-dev/ocp-v4.0-art-dev
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+```
 
 ## References:
 

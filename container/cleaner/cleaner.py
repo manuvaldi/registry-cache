@@ -233,7 +233,7 @@ def main(config='/toolbox/config-base.yaml'):
     while(True):
         size=get_size(dockerdir)
         sizehuman=bytes2human(size)
-        log.info("CURRENT SIZE: %s (%s)" % (size, sizehuman))
+        log.info("CURRENT SIZE: %s (%s), threshold <= %s " % (size, sizehuman, bytes2human(thresholdlimit)))
         if size > thresholdlimit:
             log.info("** CLEANING START **")
             while size > limit:
