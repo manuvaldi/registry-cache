@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
 
 ENV PATH /usr/local/bin:$PATH
 
@@ -18,7 +18,7 @@ RUN mkdir -p /var/lib/registry/  \
     && pip3 install -U -r /requirements.txt
 
 # Registry binary
-RUN wget -O registry.tar.gz https://github.com/distribution/distribution/releases/download/v2.8.1/registry_2.8.1_linux_amd64.tar.gz && \
+RUN wget -O registry.tar.gz https://github.com/distribution/distribution/releases/download/v2.8.3/registry_2.8.3_linux_amd64.tar.gz && \
     tar --extract --verbose --file registry.tar.gz --directory /bin/ registry && \
     rm registry.tar.gz && \
     mkdir -p /etc/docker/registry/
