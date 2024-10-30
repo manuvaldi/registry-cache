@@ -1,2 +1,3 @@
 pip
 supervisor==4.2.2
+supervisor_checks==0.8.1
