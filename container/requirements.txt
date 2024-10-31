@@ -1,3 +1,4 @@
 pip
-supervisor==4.2.2
+supervisor==4.2.5
 supervisor_checks==0.8.1
+ujson==5.10.0

@@ -4,12 +4,17 @@
 import sys
 import time
 import json
+import ujson
 import subprocess
 import os
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from functools import lru_cache
 
 registrydir = "/var/lib/registry"
+
+executor = ThreadPoolExecutor(max_workers=10)
 
 class LoggerAdapter(logging.LoggerAdapter):
     def __init__(self, logger, prefix):
@@ -56,93 +61,74 @@ class RequestHandler(BaseHTTPRequestHandler):
         return True
 
 
-    def do_POST(self):
 
+    def do_POST(self):
+        # Parse the request path
         request_path = self.path
         request_path_parse = url_to_dict(request_path)
         registry = str(request_path_parse['registry'])
         log = LoggerAdapter(logh, registry)
 
-        request_headers = self.headers
-        # content_length = request_headers.getheaders('content-length')
-        content_length = request_headers.get_all('content-length', 0)
-        content_length_check = int(content_length[0]) if content_length else 0
+        # Read request content and load JSON
+        content_length = int(self.headers.get('Content-Length', 0))
+        content_body = self.rfile.read(content_length)
 
-        content_body = self.rfile.read(content_length_check)
-        content_body_json = json.loads(content_body)
+        try:
+            content_body_json = ujson.loads(content_body)  # Using ujson for faster JSON parsing
+        except ValueError:
+            log.error("Error parsing JSON body.")
+            self.send_error(400, "Invalid JSON format")
+            return
 
-        # log.debug("\n----- Request Start ----->\n")
-        # log.debug('Request: ' + request_path)
-        # log.debug(request_headers)
-        # log.debug(content_body)
-        # log.debug("<----- Request End -----\n")
+        # Ensure JSON contains the expected 'events' key
+        if "events" not in content_body_json:
+            log.error("No events in JSON body.")
+            self.send_error(400, "No events in request")
+            return
 
-        self._set_headers()
+        # Extract details from the event to identify the image
+        event = content_body_json["events"][0]
+        repository = event['target']['repository']
+        tag = event['target'].get('tag')
+        digest = event['target']['digest']
+        imagenrequested = f"{repository}:{tag}" if tag else f"{repository}@{digest}"
 
-        if content_body_json:
+        # Update the access time of the main digest file
+        log.info(f"Image request: {imagenrequested}")
+        log.info(f"Digest request: {digest}")
+        updateatimedigest(digest, log)
 
-            # print(json.dumps(content_body_json, indent=4))
-
-            repository = content_body_json['events'][0]['target']['repository']
-            # url = content_body_json['events'][0]['target']['url']
-            # mediaType = content_body_json['events'][0]['target']['mediaType']
-            #
-            try:
-                tag = content_body_json['events'][0]['target']['tag']
-            #
-            except KeyError:
-                tag = None
-            #
-            digest = content_body_json['events'][0]['target']['digest']
-            # timestamp = content_body_json['events'][0]['timestamp']
-            # try:
-            #   actor = content_body_json['events'][0]['actor']['name']
-            # except:
-            #   actor = "actor-manu"
-            # action = content_body_json['events'][0]['action']
-
-            # print(repository, url, mediaType, tag,
-            #       digest, timestamp, actor, action)
-            if tag:
-                imagenrequested = repository + ":" + tag
-            else:
-                imagenrequested = repository + "@" + digest
-
-
-        # Update atime of requested blob
-        log.info("Imagen request: " + imagenrequested)
-        log.info("Digest request: " + digest)
-        updateatimedigest(digest,log)
-
-
-        # Checking if blob is a json and return None if not
+        # Fetch the JSON blob to retrieve layer information
         digestblobjson = getjson(digest)
 
-        # Loop in layers and update atime of layer blobs
-        if digestblobjson is not None and 'layers' in digestblobjson.keys():
+        # If JSON blob has layers, process each layer in parallel
+        if digestblobjson and 'layers' in digestblobjson:
             log.debug("Searching for layers...")
-            for layer in digestblobjson['layers']:
-              log.debug("Layer found: " + layer['digest'])
-              updateatimedigest(layer['digest'],log)
+            layer_digests = [layer['digest'] for layer in digestblobjson['layers']]
+
+            # Run the layer access time updates in parallel using ThreadPoolExecutor
+            executor.map(lambda layer_digest: updateatimedigest(layer_digest, log), layer_digests)
+
+        # Send HTTP response indicating the POST request was processed
+        self._set_headers()
+        self.wfile.write("POST request processed successfully.".encode("utf-8"))
 
 
+
+@lru_cache(maxsize=128)
 def getjson(digest):
     digestarray = digest.split(":")
     digesthash = digestarray[1]
-    blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digesthash[:2] + '/' + digesthash + '/data'
+    blobfile = os.path.join(registrydir, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
     if os.path.exists(blobfile):
-        f = open(blobfile,'r')
-        try:
-            blobjson = json.load(f)
-            isJson = True
-        except:
-            log.debug("Layer blob is not json ")
-            isJson = False
-        f.close()
-        if isJson:
-            return blobjson
-        else:
-            return None;
+        with open(blobfile, 'r') as f:
+            try:
+                blobjson = ujson.load(f)
+                return blobjson
+            except ValueError:
+                log.debug("Layer blob is not json")
+    return None
+
 
 def updateatimedigest(digest,log):
 
