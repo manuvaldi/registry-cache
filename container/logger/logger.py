@@ -41,11 +41,6 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         request_path = self.path
 
-        # print("\n----- Request Start ----->\n")
-        # print(request_path)
-        # print(self.headers)
-        # print("<----- Request End -----\n")
-
         self._set_headers()
 
         self.wfile.write("<html><head><titleDocker Registry Notifications</title></head>".encode("utf-8"))
