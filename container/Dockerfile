@@ -1,10 +1,11 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10
 
 ENV PATH /usr/local/bin:$PATH
 
 RUN microdnf update \
     && microdnf install \
-       python3 wget binutils findutils tar gzip ca-certificates tzdata procps-ng jq gettext \
+       python3.12 python3.12-pip \
+       wget binutils findutils tar gzip ca-certificates tzdata procps-ng jq gettext \
        haproxy rsyslog \
     && microdnf clean all  \
     && rm -rf /var/cache/yum \
