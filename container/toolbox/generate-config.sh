@@ -66,8 +66,9 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | sort_by(length)
 
 done
 
-# GC config for cleaner (cache only, delete enabled)
+# GC config for cleaner (cache and local, delete enabled)
 cp $TOOLBOXPATH/config-gc.yaml $ETCDOCKERPATH/config-gc.yml
+cp $TOOLBOXPATH/config-gc-local.yaml $ETCDOCKERPATH/config-gc-local.yml
 
 # --- Local registry (push/pull, no proxy) ---
 mkdir -p /var/lib/registry/local

@@ -6,7 +6,7 @@ The container is a container that running some processes via supervisord:
 
 - `registry`: based on official registry v2 with an starting script to generate registry config. Credentials are extracted from `pull-secret.json`
 - `logger`: which takes the container images requests and update the access time of the layers (blobs) and the manifests, in order to control the aging of them.
-- `cleaner`: sort **cache** blobs by access time and remove oldest blobs in batches until used size of the pull-through cache was between limits. Does not delete images stored in the local registry.
+- `cleaner`: when cache + local size exceeds the limit, sort blobs from **both** by access time and remove the oldest in batches. Then garbage-collect cache and/or local as needed.
 - `haproxy`: reverse proxy for differents registries running (haproxy 1.8). Its redirect to the registry cache according to the path. Paths that do not match a known pull-through registry go to the local registry.
 - `rsyslogd`: to be able to have logs from haproxy
 - registries in pull through cache mode: every registry specified in `pull-secret.json` file will be used to run up an registry pull-through cache mode registry.
@@ -173,11 +173,12 @@ podman stop registry-cache
 
 ## Configuration ENV vars
 
-- `CLEANER_MAXSIZE`: Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). By default "10G". Applies to the pull-through cache only, not to local pushes.
-- `CLEANER_THRESHOLD_PERCENTAGE`: Percentage threshold. If cache takes more than `CLEANER_MAXSIZE` + `CLEANER_THRESHOLD_PERCENTAGE%`, then cleaner cleans. By default '20' (== 20%).
+- `CLEANER_MAXSIZE`: Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). By default "10G". Compared against cache + local combined size. The cleaner deletes the oldest blobs from cache and local.
+- `CLEANER_THRESHOLD_PERCENTAGE`: Percentage threshold. If cache+local takes more than `CLEANER_MAXSIZE` + `CLEANER_THRESHOLD_PERCENTAGE%`, then cleaner cleans. By default '20' (== 20%).
 - `CLEANER_RUNEVERY_TIME`:Cleaner check every `CLEANER_RUNEVERY_TIME` the cache size. In format "1h2m3s". By default "30m" (== 30 minutes).
-- `CLEANER_BATCH`: Number of oldest cache blobs to delete per cleaning pass before one garbage-collect. By default "50".
-- `CLEANER_GC_CONFIG`: Path to registry config used by garbage-collect. By default `/etc/docker/registry/config-gc.yml`.
+- `CLEANER_BATCH`: Number of oldest blobs (cache and local) to delete per cleaning pass before garbage-collect. By default "50".
+- `CLEANER_GC_CONFIG`: Path to registry config used by cache garbage-collect. By default `/etc/docker/registry/config-gc.yml`.
+- `CLEANER_GC_LOCAL_CONFIG`: Path to registry config used by local garbage-collect. By default `/etc/docker/registry/config-gc-local.yml`.
 - `IGNOREREGISTRYLIST`: Space separated list of registries to be ignored from pull secret. By default 'cloud.openshift.com'.
 
 ## Firewall config

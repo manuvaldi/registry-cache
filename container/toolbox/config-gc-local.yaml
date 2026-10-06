@@ -1,0 +1,12 @@
+version: 0.1
+log:
+  accesslog:
+    disabled: true
+  level: warn
+  fields:
+    service: gc-local
+storage:
+  filesystem:
+    rootdirectory: /var/lib/registry/local
+  delete:
+    enabled: true

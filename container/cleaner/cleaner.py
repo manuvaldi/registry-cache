@@ -173,6 +173,16 @@ def print_config(humanlimit,threshold,thresholdlimit,humanrunevery,config,regist
 
 
 
+def log_sizes(cache_size, local_size, thresholdlimit):
+    total = cache_size + local_size
+    log.info("CACHE SIZE : %s (%s)" % (cache_size, bytes2human(cache_size)))
+    log.info("LOCAL SIZE : %s (%s)" % (local_size, bytes2human(local_size)))
+    log.info("TOTAL SIZE : %s (%s), threshold <= %s " % (
+        total, bytes2human(total), bytes2human(thresholdlimit)))
+    return total
+
+
+
 def get_size(start_path = '.'):
     total_size = 0
     if not os.path.isdir(start_path):
@@ -228,8 +238,11 @@ def iter_blob_dirs(blobs_root):
 
 
 
-def oldest_blob_dirs(blobs_root, batch):
-    return [path for _, path in heapq.nsmallest(batch, iter_blob_dirs(blobs_root), key=lambda item: item[0])]
+def oldest_blob_dirs(blobs_roots, batch):
+    def all_blobs():
+        for root in blobs_roots:
+            yield from iter_blob_dirs(root)
+    return [path for _, path in heapq.nsmallest(batch, all_blobs(), key=lambda item: item[0])]
 
 
 
@@ -249,44 +262,65 @@ def main(config='/etc/docker/registry/config-gc.yml'):
     btwdeletestime = int(os.environ.get('CLEANER_BTWDELETES_TIME', '2'))
     batch = int(os.environ.get('CLEANER_BATCH', '50'))
     config = os.environ.get('CLEANER_GC_CONFIG', config)
+    local_gc_config = os.environ.get('CLEANER_GC_LOCAL_CONFIG', '/etc/docker/registry/config-gc-local.yml')
 
     limit = int(human2bytes(humanlimit))
     thresholdlimit = limit * ( 1 + (threshold/100))
     runeveryseconds = int(human2seconds(humanrunevery))
     registrydir = os.environ.get('REGISTRYDIR','/var/lib/registry')
     dockerdir = os.path.join(registrydir, 'docker')
+    localdir = os.path.join(registrydir, 'local')
     blobsdir = os.path.join(dockerdir, 'registry/v2/blobs/sha256')
+    localblobsdir = os.path.join(localdir, 'docker/registry/v2/blobs/sha256')
 
     printconfig()
 
     while(True):
-        size=get_size(dockerdir)
-        sizehuman=bytes2human(size)
-        log.info("CURRENT SIZE: %s (%s), threshold <= %s " % (size, sizehuman, bytes2human(thresholdlimit)))
+        cache_size = get_size(dockerdir)
+        local_size = get_size(localdir)
+        size = log_sizes(cache_size, local_size, thresholdlimit)
+        sizehuman = bytes2human(size)
         if size > thresholdlimit:
             log.info("** CLEANING START **")
             while size > limit:
                 log.info("Cleaning (%s > %s)" % (sizehuman, humanlimit))
 
-                candidates = oldest_blob_dirs(blobsdir, batch)
+                candidates = oldest_blob_dirs([blobsdir, localblobsdir], batch)
                 if not candidates:
-                    log.warning("No cache blobs left to remove")
+                    log.warning("No blobs left to remove")
                     break
 
+                deleted_cache = False
+                deleted_local = False
                 for blobdir in candidates:
-                    log.info("Removing blob: " + blobdir)
+                    if blobdir.startswith(localdir + os.sep) or blobdir == localdir:
+                        kind = "local"
+                        deleted_local = True
+                    else:
+                        kind = "cache"
+                        deleted_cache = True
+                    log.info("Removing %s blob: %s" % (kind, blobdir))
                     remove_blob_dir(blobdir)
 
-                log.info("Executing Registry Garbage Collector....")
-                run_garbage_collect(config)
+                if deleted_cache:
+                    log.info("Executing Registry Garbage Collector (cache)....")
+                    run_garbage_collect(config)
+                if deleted_local:
+                    log.info("Executing Registry Garbage Collector (local)....")
+                    run_garbage_collect(local_gc_config)
 
                 time.sleep(btwdeletestime)
 
-                size=get_size(dockerdir)
-                sizehuman=bytes2human(size)
+                cache_size = get_size(dockerdir)
+                local_size = get_size(localdir)
+                size = log_sizes(cache_size, local_size, thresholdlimit)
+                sizehuman = bytes2human(size)
 
             log.info("** CLEANING FINISH **")
-            log.info("AFTER CLEANING SIZE: %s (%s)" % (size, sizehuman))
+            log.info("AFTER CLEANING SIZE: cache %s (%s), local %s (%s), total %s (%s)" % (
+                cache_size, bytes2human(cache_size),
+                local_size, bytes2human(local_size),
+                size, sizehuman))
             printconfig()
         time.sleep(runeveryseconds)
 
