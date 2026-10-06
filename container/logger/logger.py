@@ -100,25 +100,27 @@ class RequestHandler(BaseHTTPRequestHandler):
         digest = event['target']['digest']
         imagenrequested = f"{repository}:{tag}" if tag else f"{repository}@{digest}"
 
-        # Update the access time of the main digest file
+        # ACK before atime work so registry notifications do not hit Client.Timeout
+        self._set_headers()
+        try:
+            self.wfile.write("POST request accepted.".encode("utf-8"))
+            self.wfile.flush()
+        except BrokenPipeError:
+            log.debug("Client closed connection after ACK; continuing atime update.")
+
         log.info(f"Image request: {imagenrequested}")
         log.debug(f"Digest request: {digest}")
         updateatimedigest(digest, storage_root, log)
 
-        # Fetch the JSON blob to retrieve layer information
         digestblobjson = getjson(digest, storage_root)
 
-        # If JSON blob has layers, process each layer in parallel
         if digestblobjson and 'layers' in digestblobjson:
             log.debug("Searching for layers...")
             layer_digests = [layer['digest'] for layer in digestblobjson['layers']]
-
-            # Run the layer access time updates in parallel using ThreadPoolExecutor
-            list(executor.map(lambda layer_digest: updateatimedigest(layer_digest, storage_root, log), layer_digests))
-
-        # Send HTTP response indicating the POST request was processed
-        self._set_headers()
-        self.wfile.write("POST request processed successfully.".encode("utf-8"))
+            list(executor.map(
+                lambda layer_digest: updateatimedigest(layer_digest, storage_root, log),
+                layer_digests,
+            ))
 
 
 

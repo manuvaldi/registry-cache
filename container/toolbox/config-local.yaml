@@ -26,6 +26,6 @@ notifications:
  endpoints:
    - name: logger
      url: http://127.0.0.1:8000?registry=local
-     timeout: 2000ms
+     timeout: 5s
      threshold: 3
      backoff: 5s
