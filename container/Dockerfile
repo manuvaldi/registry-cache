@@ -7,15 +7,7 @@ RUN microdnf update \
        python3.12 python3.12-pip \
        wget binutils findutils tar gzip ca-certificates tzdata procps-ng jq gettext \
        haproxy rsyslog \
-       gcc make openssl-devel pcre-devel zlib-devel \
-    && wget -O haproxy.tar.gz https://www.haproxy.org/download/2.8/src/haproxy-2.8.15.tar.gz \
-    && tar -xzf haproxy.tar.gz \
-    && make -C haproxy-2.8.15 -j"$(nproc)" \
-         TARGET=linux-glibc USE_OPENSSL=1 USE_ZLIB=1 USE_PCRE=1 USE_THREAD=1 \
-    && make -C haproxy-2.8.15 install PREFIX=/usr \
-    && rm -rf haproxy.tar.gz haproxy-2.8.15 \
-    && microdnf remove -y gcc make openssl-devel pcre-devel zlib-devel \
-    && microdnf clean all \
+    && microdnf clean all  \
     && rm -rf /var/cache/yum \
     && rpm -e --nodeps $(rpm -qa '*rpm*' '*dnf*' '*libsolv*' '*hawkey*' 'yum*')
 

@@ -12,7 +12,6 @@ storage:
     enabled: false
 http:
   addr: :$LISTENPORT
-  relativeurls: true
   headers:
     X-Content-Type-Options: [nosniff]
   debug:

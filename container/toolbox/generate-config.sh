@@ -59,7 +59,7 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | sort_by(length)
   # Generating backends for haproxy
   echo -e "\n# Backend for $registry                      " > /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
   echo "backend $registry_clean                           " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
-  echo "    http-request replace-path ^/v2/[^/]+/(.*) /v2/\1" >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
+  echo "    reqrep ^(.*)/v2/[a-z0-9.-]*/(.*)     \1/v2/\2  " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
   echo "    server registry_backend 127.0.0.1:$LISTENPORT " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
 
   echo ""
