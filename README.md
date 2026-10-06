@@ -181,6 +181,18 @@ podman stop registry-cache
 - `CLEANER_GC_LOCAL_CONFIG`: Path to registry config used by local garbage-collect. By default `/etc/docker/registry/config-gc-local.yml`.
 - `IGNOREREGISTRYLIST`: Space separated list of registries to be ignored from pull secret. By default 'cloud.openshift.com'.
 
+## Delete local repositories
+
+Inside the container, delete a repository prefix (all tags, manifests and then unreferenced blobs):
+
+```
+podman exec registry-cache python3 /toolbox/delete-local.py --list
+podman exec registry-cache python3 /toolbox/delete-local.py myimage
+podman exec registry-cache python3 /toolbox/delete-local.py team/app
+```
+
+`team/app` removes that repository tree recursively. Blobs still used by other local images are kept. `--no-gc` skips garbage-collect.
+
 ## Firewall config
 
 If a firewall is running on the hosts, the exposed port (8443) will need to be permitted.
