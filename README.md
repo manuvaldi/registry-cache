@@ -1,18 +1,26 @@
 # registry-cache
 
-A container/docker registry cache. This runs one or many containers registry as a pull-through cache. Includes a process as a cleaner to control the max size. It allows private registries with credentials.
+A container/docker registry cache. This runs one or many container registries as a pull-through cache, plus a local registry for push/pull. Includes a process as a cleaner to control the max size. It allows private registries with credentials.
 
 The container is a container that running some processes via supervisord:
 
-- `registry`: based on official registry v2 with an starting script to generate registry config with quay.io cache enabled. Credential are extracted from `pull-secret.json`
+- `registry`: based on official registry v2 with an starting script to generate registry config. Credentials are extracted from `pull-secret.json`
 - `logger`: which takes the container images requests and update the access time of the layers (blobs) and the manifests, in order to control the aging of them.
 - `cleaner`: sort blobs by access time an remove oldest blobs until used size of registry was between limits.
-- `haproxy`: reverse proxy for differents registries running (haproxy 1.8). Its redirect to the registry cache according to the path.
+- `haproxy`: reverse proxy for differents registries running (haproxy 1.8). Its redirect to the registry cache according to the path. Paths that do not match a known pull-through registry go to the local registry.
 - `rsyslogd`: to be able to have logs from haproxy
 - registries in pull through cache mode: every registry specified in `pull-secret.json` file will be used to run up an registry pull-through cache mode registry.
+- local registry: a non-proxy registry instance for native push and pull. It is the HAProxy default backend.
 
 
-For example, if you want to cache a quay image instead of pulling `quay.io/podman/hello:latest`, you will pull `yourregistry.local/quay.io/podman/hello:latest`
+For example, if you want to cache a quay image instead of pulling `quay.io/podman/hello:latest`, you will pull `yourregistry.local/quay.io/podman/hello:latest`.
+
+To store an image on this host (not a remote cache), push without a remote registry prefix:
+
+```
+podman push myimage:latest yourregistry.local/myimage:latest
+podman pull yourregistry.local/myimage:latest
+```
 
 
 
@@ -26,15 +34,17 @@ For example, if you want to cache a quay image instead of pulling `quay.io/podma
 │ (reverse proxy)  ├───────┐    ┌───────────────────┐    │              │  blobs & manifests  │
 └────────┬───────┬─┘       │    │                   ├────┼─────────────►│                     │
          │       │         └───►│  Registry cache 2 │────│              └─────────────────────┘
-         │       │              └───────────────────┘    │               ▲    ▲    ▲
-         │       │              ....                     │               │    │    │
-         │       │              ┌───────────────────┐    │               │    │    │
-         │       │              │                   │────│               │    │    │
-         │       └─────────────►│  Registry cache n ├────┼───────────────┘    │    │
-         │                      └───────────────────┘    │                    │    │
-         │                                               │                    │    │
-         │                                               │                    │    │
-         ▼                                               ▼                    │    │
+         │       │              └───────────────────┘    │               ▲    ▲    ▲    ▲
+         │       │              ....                     │               │    │    │    │
+         │       │              ┌───────────────────┐    │               │    │    │    │
+         │       │              │                   │────│               │    │    │    │
+         │       ├─────────────►│  Registry cache n ├────┼───────────────┘    │    │    │
+         │       │              └───────────────────┘    │                    │    │    │
+         │       │              ┌───────────────────┐    │                    │    │    │
+         │       └─────────────►│  Local registry   ├────┼────────────────────┘    │    │
+         │                      └───────────────────┘    │                         │    │
+         │                                               │                         │    │
+         ▼                                               ▼                         │    │
  ┌─────────────────┐                                ┌───────────────────┐     │    │
  │                 │                                │                   │     │    │
  │  RSYSLOG        │                                │   LOGGER          ├─────┘    │
@@ -198,6 +208,10 @@ Writing manifest to image destination
 Storing signatures
 133ff45f557da063a1f6f301866c7276c22ea07aeda078d00a790ea50516dcbc
 
+# Push/pull to the local registry (no remote registry prefix)
+# podman tag myimage:latest <hostname>:8443/myimage:latest
+# podman push <hostname>:8443/myimage:latest
+# podman pull <hostname>:8443/myimage:latest
 ```
 
 ## Image

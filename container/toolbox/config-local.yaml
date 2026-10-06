@@ -1,0 +1,31 @@
+version: 0.1
+log:
+  accesslog:
+    disabled: true
+  level: warn
+  fields:
+    service: local
+storage:
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true
+http:
+  addr: :$LISTENPORT
+  headers:
+    X-Content-Type-Options: [nosniff]
+  debug:
+    addr: :$LISTENPORTSTATS
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+
+notifications:
+ endpoints:
+   - name: logger
+     url: http://127.0.0.1:8000?registry=local
+     timeout: 2000ms
+     threshold: 3
+     backoff: 5s

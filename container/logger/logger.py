@@ -3,7 +3,6 @@
 
 import sys
 import time
-import json
 import ujson
 import subprocess
 import os
@@ -113,7 +112,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             layer_digests = [layer['digest'] for layer in digestblobjson['layers']]
 
             # Run the layer access time updates in parallel using ThreadPoolExecutor
-            executor.map(lambda layer_digest: updateatimedigest(layer_digest, log), layer_digests)
+            list(executor.map(lambda layer_digest: updateatimedigest(layer_digest, log), layer_digests))
 
         # Send HTTP response indicating the POST request was processed
         self._set_headers()

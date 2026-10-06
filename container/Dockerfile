@@ -44,6 +44,6 @@ COPY /supervisord/supervisord.conf      /etc/supervisor/conf.d/supervisord.conf
 COPY /rsyslog/rsyslog.conf /etc/rsyslog.d/
 
 VOLUME ["/var/lib/registry"]
-EXPOSE 8000
+EXPOSE 8443
 
 CMD ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

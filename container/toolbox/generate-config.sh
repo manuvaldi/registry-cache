@@ -6,7 +6,6 @@ INITIALPORT="${INITIALPORT:=5000}"
 IGNOREREGISTRYLIST="${IGNOREREGISTRYLIST:=cloud.openshift.com}"
 
 INDEX=0
-INITIALPORT=5000
 
 # Check is Lock File exists, if exists exit
 if [ -f "/generateconfig.lock" ]; then
@@ -27,7 +26,7 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | sort_by(length)
 
   authentry=$(cat $PULLSECRETPATH | jq  -r '.auths["'$registry'"].auth | select (.!=null)')
   user=$(echo $authentry  | base64 -d | awk -F":" '{print $1}')
-  pass=$(echo $authentry  | base64 -d | awk -F":" '{print $2}')
+  pass=$(echo $authentry  | base64 -d | cut -d: -f2-)
   export registry_clean="$(echo $registry | tr '/' '_' | tr ':' '_')"
   export REGISTRY=$registry_clean
   export LISTENPORT=$(( INITIALPORT + INDEX*2 - 2 ))
@@ -60,16 +59,36 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | sort_by(length)
   # Generating backends for haproxy
   echo -e "\n# Backend for $registry                      " > /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
   echo "backend $registry_clean                           " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
-  echo "    reqrep ^(.*)/v2/[a-z0-9.]*/(.*)     \1/v2/\2  " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
+  echo "    reqrep ^(.*)/v2/[a-z0-9.-]*/(.*)     \1/v2/\2  " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
   echo "    server registry_backend 127.0.0.1:$LISTENPORT " >> /haproxy/config-registry-backend-$INDEX-$registry_clean.cfg
 
   echo ""
 
 done
 
+# --- Local registry (push/pull, no proxy) ---
+export LISTENPORT=$(( INITIALPORT + INDEX*2 ))
+export LISTENPORTSTATS=$(( LISTENPORT + 1 ))
+export REGISTRY=local
+export REGISTRYCLEAN=local
+export REGISTRYCONFIGFILE=$ETCDOCKERPATH/config-local.yml
+
+echo " * Local registry (push/pull)"
+echo " * Listen Ports: $LISTENPORT, $LISTENPORTSTATS"
+
+cat $TOOLBOXPATH/config-local.yaml | envsubst > $REGISTRYCONFIGFILE
+cat $TOOLBOXPATH/supervisord-config-registry-base.conf | envsubst > $SUPERVISORDPATH/config-registry-local.conf
+
+# HAProxy backend for local (no path rewrite needed)
+echo -e "\n# Backend for local registry" > /haproxy/config-registry-backend-local.cfg
+echo "backend local"                     >> /haproxy/config-registry-backend-local.cfg
+echo "    server registry_backend 127.0.0.1:$LISTENPORT" >> /haproxy/config-registry-backend-local.cfg
+
 
 # Composing Haproxy config
-echo -e "\n    default_backend $registry_clean\n" > /haproxy/config-registry-default.cfg
+# Placeholder so glob always matches even with no pull-through registries
+touch /haproxy/config-registry-rule-0-none.cfg
+echo -e "\n    default_backend local\n" > /haproxy/config-registry-default.cfg
 cat /haproxy/haproxy.cfg /haproxy/config-registry-rule-*.cfg /haproxy/config-registry-default.cfg /haproxy/config-registry-backend-*.cfg > /haproxy/haproxy-final.cfg
 
 # creating lock file
