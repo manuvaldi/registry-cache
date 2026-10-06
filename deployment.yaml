@@ -33,11 +33,13 @@ spec:
         image: quay.io/mvalledi/registry-cache:dev
         env:
         - name: CLEANER_MAXSIZE
-          value: "10G" # Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...)
+          value: "10G" # Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). Measured as cache+local
         - name: CLEANER_THRESHOLD_PERCENTAGE
-          value: "20" # Percentage threshold. If cache+local takes CLEANER_MAXSIZE+CLEANER_THRESHOLD_PERCENTAGE%, then cleaner cleans oldest blobs from cache and local
+          value: "20" # Percentage threshold. If cache+local takes CLEANER_MAXSIZE+CLEANER_THRESHOLD_PERCENTAGE%, then cleaner cleans
         - name: CLEANER_RUNEVERY_TIME
           value: "30m" # Cleaner check every CLEANER_RUNEVERY_TIME the cache size. In format "1h2m3s"
+        - name: CLEANER_INCLUDE_LOCAL
+          value: "false" # If true, also evict oldest local-registry blobs; size always counts cache+local
         - name: "IGNOREREGISTRYLIST" # List of registries to ignore from pull-secret. Ignored won't be cached
           value: 'another-registry.example.com:5000 cloud.openshift.com'
         ports:

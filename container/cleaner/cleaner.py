@@ -162,13 +162,22 @@ def human2seconds(string):
 
 
 
-def print_config(humanlimit,threshold,thresholdlimit,humanrunevery,config,registrydir,batch):
+def env_bool(name, default=False):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+
+def print_config(humanlimit,threshold,thresholdlimit,humanrunevery,config,registrydir,batch,include_local):
   log.debug("Registry config : " + config)
   log.info("Registry data dir: " + registrydir)
   log.info("LIMIT                : %s (%s)" % (human2bytes(humanlimit), humanlimit))
   log.info("LIMIT THRESHOLD      : %s percent" % threshold)
   log.info("LIMIT THRESHOLD SIZE : %s (%s)" % (thresholdlimit, bytes2human(thresholdlimit)))
   log.info("BATCH SIZE           : %s blobs" % batch)
+  log.info("INCLUDE LOCAL        : %s" % include_local)
   log.info("RUNNING EVERY        : %s seconds (%s)" % (human2seconds(humanrunevery), humanrunevery))
 
 
@@ -254,7 +263,10 @@ def remove_blob_dir(directory):
 def main(config='/etc/docker/registry/config-gc.yml'):
 
     def printconfig():
-        print_config(humanlimit, threshold, thresholdlimit, humanrunevery, config, registrydir, batch)
+        print_config(
+            humanlimit, threshold, thresholdlimit, humanrunevery,
+            config, registrydir, batch, include_local,
+        )
 
     humanlimit = os.environ.get('CLEANER_MAXSIZE', '10G')
     threshold = int(os.environ.get('CLEANER_THRESHOLD_PERCENTAGE', '20'))
@@ -263,6 +275,7 @@ def main(config='/etc/docker/registry/config-gc.yml'):
     batch = int(os.environ.get('CLEANER_BATCH', '50'))
     config = os.environ.get('CLEANER_GC_CONFIG', config)
     local_gc_config = os.environ.get('CLEANER_GC_LOCAL_CONFIG', '/etc/docker/registry/config-gc-local.yml')
+    include_local = env_bool('CLEANER_INCLUDE_LOCAL', False)
 
     limit = int(human2bytes(humanlimit))
     thresholdlimit = limit * ( 1 + (threshold/100))
@@ -272,6 +285,7 @@ def main(config='/etc/docker/registry/config-gc.yml'):
     localdir = os.path.join(registrydir, 'local')
     blobsdir = os.path.join(dockerdir, 'registry/v2/blobs/sha256')
     localblobsdir = os.path.join(localdir, 'docker/registry/v2/blobs/sha256')
+    blobs_roots = [blobsdir, localblobsdir] if include_local else [blobsdir]
 
     printconfig()
 
@@ -285,7 +299,7 @@ def main(config='/etc/docker/registry/config-gc.yml'):
             while size > limit:
                 log.info("Cleaning (%s > %s)" % (sizehuman, humanlimit))
 
-                candidates = oldest_blob_dirs([blobsdir, localblobsdir], batch)
+                candidates = oldest_blob_dirs(blobs_roots, batch)
                 if not candidates:
                     log.warning("No blobs left to remove")
                     break
