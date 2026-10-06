@@ -11,6 +11,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from functools import lru_cache
+from urllib.parse import urlparse, parse_qs
 
 registrydir = "/var/lib/registry"
 
@@ -38,21 +39,31 @@ class RequestHandler(BaseHTTPRequestHandler):
         return True
 
     def do_GET(self):
-
+        # Store the request path for further use in the HTML response
         request_path = self.path
 
+        # Set the response headers to indicate a successful response with HTML content
         self._set_headers()
 
-        self.wfile.write("<html><head><titleDocker Registry Notifications</title></head>".encode("utf-8"))
-        self.wfile.write("<body><b>BaseHTTPServer for Docker Registry Notifications.</b><br><i>The server sends a message when the image pushed to private docker registry.</i>".encode("utf-8"))
-        self.wfile.write("<br><br>".encode("utf-8"))
-        self.wfile.write("<a href='https://docs.docker.com/registry/configuration/'>Docker registry configuration</a><br>".encode("utf-8"))
-        self.wfile.write("<a href='https://docs.docker.com/registry/notifications'>Docker registry notifications</a><br>".encode("utf-8"))
-        self.wfile.write("<a href='https://docs.python.org/3/library/http.server.html'>Python 3 HTTP servers</a><br>".encode("utf-8"))
-        self.wfile.write("<br><hr>".encode("utf-8"))
-        self.wfile.write(("You accessed Request: <b>%s</b>" % request_path).encode("utf-8"))
-        self.wfile.write("</body></html>".encode("utf-8"))
+        # Build the full HTML content as a single string, embedding the request path dynamically
+        html_content = """<html><head><title>Docker Registry Notifications</title></head>
+        <body><b>BaseHTTPServer for Docker Registry Notifications.</b><br>
+        <i>The server sends a message when an image is pushed to a private Docker registry.</i>
+        <br><br>
+        <a href='https://docs.docker.com/registry/configuration/'>Docker registry configuration</a><br>
+        <a href='https://docs.docker.com/registry/notifications'>Docker registry notifications</a><br>
+        <a href='https://docs.python.org/3/library/http.server.html'>Python 3 HTTP servers</a><br>
+        <br><hr>
+        You accessed Request: <b>{}</b>
+        </body></html>""".format(request_path)
 
+        # Send the complete HTML content as a single encoded response to the client
+        try:
+            self.wfile.write(html_content.encode("utf-8"))
+        except BrokenPipeError:
+            log.error("Connection closed by client before the response was fully sent.")
+
+        # Return True to indicate successful handling of the GET request
         return True
 
 
@@ -90,7 +101,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # Update the access time of the main digest file
         log.info(f"Image request: {imagenrequested}")
-        log.info(f"Digest request: {digest}")
+        log.debug(f"Digest request: {digest}")
         updateatimedigest(digest, log)
 
         # Fetch the JSON blob to retrieve layer information
@@ -110,43 +121,35 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=512)
 def getjson(digest):
     digestarray = digest.split(":")
     digesthash = digestarray[1]
     blobfile = os.path.join(registrydir, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
     if os.path.exists(blobfile):
-        with open(blobfile, 'r') as f:
-            try:
-                blobjson = ujson.load(f)
-                return blobjson
-            except ValueError:
-                log.debug("Layer blob is not json")
+        try:
+            with open(blobfile, 'r') as f:
+                return ujson.load(f)
+        except (ValueError, OSError) as e:
+            log.debug(f"Error reading JSON from {blobfile}: {e}")
     return None
 
 
-def updateatimedigest(digest,log):
 
-  digestarray = digest.split(":")
-  digesthash = digestarray[1]
-  blobfile = registrydir + '/docker/registry/v2/blobs/sha256/' + digesthash[:2] + '/' + digesthash + '/data'
-
-  if os.path.exists(blobfile):
-    log.info("Updating access time of digest: " + digest )
-    log.debug("Updating access time of file: " + blobfile)
-    os.utime(blobfile)
+def updateatimedigest(digest, log):
+    digesthash = digest.split(":")[1]
+    blobfile = os.path.join(registrydir, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
+    if os.path.exists(blobfile):
+        try:
+            os.utime(blobfile, None)
+            log.debug(f"Access time updated for digest: {digest}")
+        except OSError as e:
+            log.error(f"Failed to update access time for {blobfile}: {e}")
 
 
 def url_to_dict(url):
-
-    url_dict = dict()
-
-    for item in url.split("&"):
-        item = item.replace("/", "")
-        item = item.replace("?", "")
-        url_dict[item.split("=")[0]] = item.split("=")[1]
-
-    return url_dict
+    parsed_url = urlparse(url)
+    return {k: v[0] for k, v in parse_qs(parsed_url.query).items()}
 
 
 def main(server_class=HTTPServer, handler_class=RequestHandler, server='0.0.0.0', port=8000):
