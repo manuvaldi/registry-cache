@@ -6,11 +6,11 @@ The container is a container that running some processes via supervisord:
 
 - `registry`: based on official registry v2 with an starting script to generate registry config. Credentials are extracted from `pull-secret.json`
 - `logger`: which takes the container images requests and update the access time of the layers (blobs) and the manifests, in order to control the aging of them.
-- `cleaner`: sort blobs by access time an remove oldest blobs until used size of registry was between limits.
+- `cleaner`: sort **cache** blobs by access time and remove oldest blobs in batches until used size of the pull-through cache was between limits. Does not delete images stored in the local registry.
 - `haproxy`: reverse proxy for differents registries running (haproxy 1.8). Its redirect to the registry cache according to the path. Paths that do not match a known pull-through registry go to the local registry.
 - `rsyslogd`: to be able to have logs from haproxy
 - registries in pull through cache mode: every registry specified in `pull-secret.json` file will be used to run up an registry pull-through cache mode registry.
-- local registry: a non-proxy registry instance for native push and pull. It is the HAProxy default backend.
+- local registry: a non-proxy registry instance for native push and pull. It is the HAProxy default backend. Data lives under `local/` in the same volume (`/var/lib/registry/local`).
 
 
 For example, if you want to cache a quay image instead of pulling `quay.io/podman/hello:latest`, you will pull `yourregistry.local/quay.io/podman/hello:latest`.
@@ -74,7 +74,7 @@ podman pull yourregistry.local/myimage:latest
 - The **Auth** subdirectory stores the htpasswd file used for authentication.
 - The **Certs** subdirectory stores certificates used by the registry for
 authentication.
-- The **Data** directory stores the actual images stored in the registry.
+- The **Data** directory stores the actual images stored in the registry. Pull-through cache uses `/var/lib/registry/docker`. Local push/pull uses `/var/lib/registry/local` on the same volume.
 
 
 ### 3.- Generate credentials for the registry (optional)
@@ -173,9 +173,11 @@ podman stop registry-cache
 
 ## Configuration ENV vars
 
-- `CLEANER_MAXSIZE`: Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). By default "10G"
+- `CLEANER_MAXSIZE`: Max Size in human redeable size (M, MB, MiB, G, GB, GiB, ...). By default "10G". Applies to the pull-through cache only, not to local pushes.
 - `CLEANER_THRESHOLD_PERCENTAGE`: Percentage threshold. If cache takes more than `CLEANER_MAXSIZE` + `CLEANER_THRESHOLD_PERCENTAGE%`, then cleaner cleans. By default '20' (== 20%).
 - `CLEANER_RUNEVERY_TIME`:Cleaner check every `CLEANER_RUNEVERY_TIME` the cache size. In format "1h2m3s". By default "30m" (== 30 minutes).
+- `CLEANER_BATCH`: Number of oldest cache blobs to delete per cleaning pass before one garbage-collect. By default "50".
+- `CLEANER_GC_CONFIG`: Path to registry config used by garbage-collect. By default `/etc/docker/registry/config-gc.yml`.
 - `IGNOREREGISTRYLIST`: Space separated list of registries to be ignored from pull secret. By default 'cloud.openshift.com'.
 
 ## Firewall config

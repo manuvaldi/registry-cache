@@ -1,10 +1,11 @@
 import sys
 import os
 import logging
-from pathlib import Path
 import subprocess
 import time
 import re
+import shutil
+import heapq
 from collections import OrderedDict
 
 # Init Logger
@@ -161,72 +162,100 @@ def human2seconds(string):
 
 
 
-def print_config(humanlimit,threshold,thresholdlimit,humanrunevery,config,registrydir):
+def print_config(humanlimit,threshold,thresholdlimit,humanrunevery,config,registrydir,batch):
   log.debug("Registry config : " + config)
   log.info("Registry data dir: " + registrydir)
   log.info("LIMIT                : %s (%s)" % (human2bytes(humanlimit), humanlimit))
   log.info("LIMIT THRESHOLD      : %s percent" % threshold)
   log.info("LIMIT THRESHOLD SIZE : %s (%s)" % (thresholdlimit, bytes2human(thresholdlimit)))
+  log.info("BATCH SIZE           : %s blobs" % batch)
   log.info("RUNNING EVERY        : %s seconds (%s)" % (human2seconds(humanrunevery), humanrunevery))
 
 
 
 def get_size(start_path = '.'):
     total_size = 0
+    if not os.path.isdir(start_path):
+        return 0
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
             # skip if it is symbolic link
             if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
+                try:
+                    total_size += os.path.getsize(fp)
+                except OSError:
+                    continue
 
     return total_size
 
 
 
 def run_garbage_collect(configpath):
-    p = subprocess.Popen("registry garbage-collect " + configpath + " ", stdout=subprocess.PIPE, shell=True)
-    (output, err) = p.communicate()
-    p_status = p.wait()
-    #log.debug(output.decode())
-    return output.decode()
+    result = subprocess.run(
+        ["registry", "garbage-collect", configpath],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        log.error("garbage-collect exit %s: %s" % (
+            result.returncode,
+            result.stderr.decode(errors="replace").strip(),
+        ))
+    return result.stdout.decode(errors="replace")
 
 
 
-def find_oldest_file(path):
-    p = subprocess.Popen("find " + path +" -name data -exec stat -c '%x %n' {} \;  | sort -n | head -n 1 | awk '{sub(/data$/,\"\");print $4}' | tr -d '\n'", stdout=subprocess.PIPE, shell=True)
-    (output, err) = p.communicate()
-    p_status = p.wait()
-    return output.decode()
+def iter_blob_dirs(blobs_root):
+    if not os.path.isdir(blobs_root):
+        return
+    stack = [blobs_root]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as it:
+                for entry in it:
+                    if entry.is_dir(follow_symlinks=False):
+                        stack.append(entry.path)
+                    elif entry.name == "data" and entry.is_file(follow_symlinks=False):
+                        try:
+                            st = entry.stat(follow_symlinks=False)
+                        except OSError:
+                            continue
+                        yield st.st_atime, os.path.dirname(entry.path)
+        except OSError:
+            continue
 
 
 
-def rmdir(directory):
-    directory = Path(directory)
-    for item in directory.iterdir():
-        if item.is_dir():
-            rmdir(item)
-        else:
-            item.unlink()
-    directory.rmdir()
+def oldest_blob_dirs(blobs_root, batch):
+    return [path for _, path in heapq.nsmallest(batch, iter_blob_dirs(blobs_root), key=lambda item: item[0])]
 
 
 
-def main(config='/toolbox/config-base.yaml'):
+def remove_blob_dir(directory):
+    shutil.rmtree(directory, ignore_errors=True)
+
+
+
+def main(config='/etc/docker/registry/config-gc.yml'):
 
     def printconfig():
-        print_config(humanlimit, threshold, thresholdlimit, humanrunevery, config, registrydir)
+        print_config(humanlimit, threshold, thresholdlimit, humanrunevery, config, registrydir, batch)
 
     humanlimit = os.environ.get('CLEANER_MAXSIZE', '10G')
     threshold = int(os.environ.get('CLEANER_THRESHOLD_PERCENTAGE', '20'))
     humanrunevery = os.environ.get('CLEANER_RUNEVERY_TIME', '30m')
     btwdeletestime = int(os.environ.get('CLEANER_BTWDELETES_TIME', '2'))
+    batch = int(os.environ.get('CLEANER_BATCH', '50'))
+    config = os.environ.get('CLEANER_GC_CONFIG', config)
 
     limit = int(human2bytes(humanlimit))
     thresholdlimit = limit * ( 1 + (threshold/100))
     runeveryseconds = int(human2seconds(humanrunevery))
     registrydir = os.environ.get('REGISTRYDIR','/var/lib/registry')
-    dockerdir = registrydir + '/docker'
+    dockerdir = os.path.join(registrydir, 'docker')
+    blobsdir = os.path.join(dockerdir, 'registry/v2/blobs/sha256')
 
     printconfig()
 
@@ -239,9 +268,14 @@ def main(config='/toolbox/config-base.yaml'):
             while size > limit:
                 log.info("Cleaning (%s > %s)" % (sizehuman, humanlimit))
 
-                bloboldestfile=find_oldest_file(dockerdir + '/registry/v2/blobs/sha256')
-                log.info("Removing blob: " + bloboldestfile)
-                rmdir(bloboldestfile)
+                candidates = oldest_blob_dirs(blobsdir, batch)
+                if not candidates:
+                    log.warning("No cache blobs left to remove")
+                    break
+
+                for blobdir in candidates:
+                    log.info("Removing blob: " + blobdir)
+                    remove_blob_dir(blobdir)
 
                 log.info("Executing Registry Garbage Collector....")
                 run_garbage_collect(config)

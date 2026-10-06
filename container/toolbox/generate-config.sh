@@ -66,7 +66,11 @@ for registry in $(cat $PULLSECRETPATH |  jq -r  '.auths | keys | sort_by(length)
 
 done
 
+# GC config for cleaner (cache only, delete enabled)
+cp $TOOLBOXPATH/config-gc.yaml $ETCDOCKERPATH/config-gc.yml
+
 # --- Local registry (push/pull, no proxy) ---
+mkdir -p /var/lib/registry/local
 export LISTENPORT=$(( INITIALPORT + INDEX*2 ))
 export LISTENPORTSTATS=$(( LISTENPORT + 1 ))
 export REGISTRY=local

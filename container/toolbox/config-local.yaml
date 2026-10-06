@@ -7,7 +7,7 @@ log:
     service: local
 storage:
   filesystem:
-    rootdirectory: /var/lib/registry
+    rootdirectory: /var/lib/registry/local
   delete:
     enabled: true
 http:

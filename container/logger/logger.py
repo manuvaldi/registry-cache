@@ -12,7 +12,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from functools import lru_cache
 from urllib.parse import urlparse, parse_qs
 
-registrydir = "/var/lib/registry"
+CACHE_REGISTRYDIR = "/var/lib/registry"
+LOCAL_REGISTRYDIR = "/var/lib/registry/local"
 
 executor = ThreadPoolExecutor(max_workers=10)
 
@@ -71,7 +72,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         # Parse the request path
         request_path = self.path
         request_path_parse = url_to_dict(request_path)
-        registry = str(request_path_parse['registry'])
+        registry = str(request_path_parse.get('registry', ''))
+        storage_root = LOCAL_REGISTRYDIR if registry == 'local' else CACHE_REGISTRYDIR
         log = LoggerAdapter(logh, registry)
 
         # Read request content and load JSON
@@ -101,10 +103,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         # Update the access time of the main digest file
         log.info(f"Image request: {imagenrequested}")
         log.debug(f"Digest request: {digest}")
-        updateatimedigest(digest, log)
+        updateatimedigest(digest, storage_root, log)
 
         # Fetch the JSON blob to retrieve layer information
-        digestblobjson = getjson(digest)
+        digestblobjson = getjson(digest, storage_root)
 
         # If JSON blob has layers, process each layer in parallel
         if digestblobjson and 'layers' in digestblobjson:
@@ -112,7 +114,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             layer_digests = [layer['digest'] for layer in digestblobjson['layers']]
 
             # Run the layer access time updates in parallel using ThreadPoolExecutor
-            list(executor.map(lambda layer_digest: updateatimedigest(layer_digest, log), layer_digests))
+            list(executor.map(lambda layer_digest: updateatimedigest(layer_digest, storage_root, log), layer_digests))
 
         # Send HTTP response indicating the POST request was processed
         self._set_headers()
@@ -121,10 +123,10 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 @lru_cache(maxsize=512)
-def getjson(digest):
+def getjson(digest, storage_root):
     digestarray = digest.split(":")
     digesthash = digestarray[1]
-    blobfile = os.path.join(registrydir, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
+    blobfile = os.path.join(storage_root, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
     if os.path.exists(blobfile):
         try:
             with open(blobfile, 'r') as f:
@@ -135,9 +137,9 @@ def getjson(digest):
 
 
 
-def updateatimedigest(digest, log):
+def updateatimedigest(digest, storage_root, log):
     digesthash = digest.split(":")[1]
-    blobfile = os.path.join(registrydir, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
+    blobfile = os.path.join(storage_root, 'docker/registry/v2/blobs/sha256', digesthash[:2], digesthash, 'data')
     if os.path.exists(blobfile):
         try:
             os.utime(blobfile, None)
